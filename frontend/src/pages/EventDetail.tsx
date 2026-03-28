@@ -253,7 +253,7 @@ const EventDetail = () => {
         <div className="absolute top-1/2 right-1/4 w-20 h-20 bg-white/5 rounded-full" />
 
         <div className="relative z-10">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col md:flex-row items-start justify-between gap-6">
             <div className="flex items-start gap-3 flex-1 min-w-0">
               <Button variant="ghost" size="icon" onClick={() => navigate("/events")} className="text-white/70 hover:text-white hover:bg-white/10 -ml-2 mt-0.5 shrink-0">
                 <ArrowLeft className="h-5 w-5" />
@@ -288,7 +288,7 @@ const EventDetail = () => {
               </div>
             </div>
             {/* Actions */}
-            <div className="flex gap-2 shrink-0">
+            <div className="flex flex-wrap gap-2 shrink-0 w-full md:w-auto">
               {(event.is_competition || event.event_type === "competition" || event.event_type === "hackathon") && (
                 <Button size="sm" onClick={() => navigate(`/events/${eventId}/wall-of-fame`)} className="bg-yellow-400 text-slate-900 hover:bg-yellow-500 border-0">
                   <Trophy className="h-4 w-4 mr-1.5" />Wall of Fame

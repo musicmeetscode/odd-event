@@ -33,7 +33,7 @@ import AdminAssetManagement from "./pages/AdminAssetManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "733475143372-r6cl89i8l2h3n3t68g71h4e0h7o5v0h9.apps.googleusercontent.com"; // Placeholder
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "503556441696-noc9guh0kb19hr11pqtlmeo0cl3efsbr.apps.googleusercontent.com";
 
 const App = () => (
   <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>

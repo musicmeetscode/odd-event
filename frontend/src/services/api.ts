@@ -27,6 +27,10 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Don't auto-redirect if it's a google login attempt
+      if (error.config.url?.includes('/auth/google/')) {
+        return Promise.reject(error);
+      }
       localStorage.removeItem("events-token");
       localStorage.removeItem("events-username");
       localStorage.removeItem("events-role");

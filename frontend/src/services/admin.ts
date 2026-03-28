@@ -21,7 +21,7 @@ export const adminService = {
   },
 
   updateUserRole: async (userId: number, role: string) => {
-    const response = await apiClient.put(`/users/${userId}/`, { role });
+    const response = await apiClient.patch(`/users/${userId}/`, { role });
     return response.data;
   },
 
