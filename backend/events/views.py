@@ -247,8 +247,52 @@ class EventViewSet(viewsets.ModelViewSet):
         return EventDetailSerializer
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        event = serializer.save(created_by=self.request.user)
 
+        if event.is_recurring and event.recurrence_type and event.recurrence_end_date:
+            import uuid
+            from datetime import timedelta
+            
+            group_id = uuid.uuid4()
+            event.recurrence_group_id = group_id
+            event.save(update_fields=['recurrence_group_id'])
+            
+            current_start = event.start_date
+            current_end = event.end_date
+            duration = current_end - current_start
+            
+            while True:
+                if event.recurrence_type == 'daily':
+                    current_start += timedelta(days=1)
+                elif event.recurrence_type == 'weekly':
+                    current_start += timedelta(weeks=1)
+                elif event.recurrence_type == 'monthly':
+                    # Simple monthly increment (approx 30 days)
+                    # For a truly robust monthly logic, dateutil.relativedelta is preferred
+                    current_start += timedelta(days=30)
+                else:
+                    break
+                
+                current_end = current_start + duration
+                
+                if current_start > event.recurrence_end_date:
+                    break
+                
+                # Create instance in the series
+                Event.objects.create(
+                    title=event.title,
+                    description=event.description,
+                    event_type=event.event_type,
+                    start_date=current_start,
+                    end_date=current_end,
+                    location=event.location,
+                    max_attendees=event.max_attendees,
+                    allow_teams=event.allow_teams,
+                    max_team_size=event.max_team_size,
+                    created_by=event.created_by,
+                    is_recurring=False,
+                    recurrence_group_id=group_id
+                )
 
 class EventRegistrationView(APIView):
     """POST to register, DELETE to unregister."""

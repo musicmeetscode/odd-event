@@ -11,13 +11,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const Sidebar = () => {
+const Sidebar = ({ onClose }: { onClose?: () => void }) => {
   const { username, role, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const handleLogout = async () => {
     await logout();
+    onClose?.();
     navigate("/");
   };
 
@@ -41,7 +42,7 @@ const Sidebar = () => {
   }
 
   return (
-    <aside className="w-64 bg-white text-slate-700 flex flex-col h-screen fixed left-0 top-0 overflow-y-auto border-r border-slate-200">
+    <aside className="w-64 bg-white text-slate-700 flex flex-col h-screen overflow-y-auto border-r border-slate-200">
       {/* Brand */}
       <div
         className="p-6 flex items-center gap-3 cursor-pointer border-b border-slate-100"
@@ -70,7 +71,10 @@ const Sidebar = () => {
           <Button
             key={item.name}
             variant="ghost"
-            onClick={() => navigate(item.path)}
+            onClick={() => {
+              navigate(item.path);
+              onClose?.();
+            }}
             className={cn(
               "w-full justify-start h-12 px-4 transition-colors",
               isActive(item.path)
@@ -93,7 +97,10 @@ const Sidebar = () => {
       <div className="p-4 border-t border-slate-100 space-y-2">
         <Button
           variant="ghost"
-          onClick={() => navigate("/profile")}
+          onClick={() => {
+            navigate("/profile");
+            onClose?.();
+          }}
           className="w-full justify-start text-slate-500 hover:text-slate-900 hover:bg-slate-50"
         >
           <UserIcon className="w-5 h-5 mr-3 text-slate-400" />

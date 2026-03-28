@@ -10,7 +10,15 @@ import { Users, Calendar, FileText, Star, Loader2 } from "lucide-react";
 // Colors for charts
 const COLORS = ["#f59e0b", "#1e293b", "#3b82f6", "#ef4444", "#10b981"];
 
-const StatCard = ({ title, value, icon: Icon, colorClass, borderClass }: any) => (
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ElementType;
+  colorClass: string;
+  borderClass?: string;
+}
+
+const StatCard = ({ title, value, icon: Icon, colorClass, borderClass }: StatCardProps) => (
   <Card className={`border-none shadow-sm ${borderClass}`}>
     <CardContent className="p-6 flex flex-col pt-6 relative overflow-hidden">
       <div className="flex justify-between items-start mb-4">
@@ -43,8 +51,8 @@ const Dashboard = () => {
   const pieData = stats.event_distribution || [{ name: "No Events", value: 1 }];
   
   // Extract top event distribution for the center label of Doughnut chart
-  const topPieValue = pieData.reduce((max: any, item: any) => item.value > max.value ? item : max, pieData[0]);
-  const totalPieValues = pieData.reduce((sum: number, item: any) => sum + item.value, 0);
+  const topPieValue = pieData.reduce((max: {name: string, value: number}, item: {name: string, value: number}) => item.value > max.value ? item : max, pieData[0]);
+  const totalPieValues = pieData.reduce((sum: number, item: {value: number}) => sum + item.value, 0);
   const topPiePercentage = totalPieValues > 0 ? Math.round((topPieValue.value / totalPieValues) * 100) : 0;
 
   // areaData is kept static for visual completeness as a "trend prediction" or engagement representation not yet provided by the API
@@ -57,7 +65,7 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-800">Blue Ox Events</h1>
@@ -110,7 +118,7 @@ const Dashboard = () => {
                   <RechartsTooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
                   <Bar dataKey="val" fill="#1e293b" radius={[4, 4, 0, 0]} barSize={32}>
                     {
-                      barData.map((entry: any, index: number) => (
+                      barData.map((_entry: {name: string, val: number}, index: number) => (
                         <Cell key={`cell-${index}`} fill={'#1e293b'} />
                       ))
                     }
@@ -140,7 +148,7 @@ const Dashboard = () => {
                     dataKey="value"
                     stroke="none"
                   >
-                    {pieData.map((entry: any, index: number) => (
+                    {pieData.map((_entry: {name: string, value: number}, index: number) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -154,7 +162,7 @@ const Dashboard = () => {
             </div>
             {/* Legend */}
             <div className="mt-4 w-full space-y-2 max-h-[80px] overflow-y-auto pr-2">
-              {pieData.map((entry: any, index: number) => (
+              {pieData.map((entry: {name: string, value: number}, index: number) => (
                 <div key={entry.name} className="flex justify-between items-center text-sm">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full shrink-0" style={{backgroundColor: COLORS[index % COLORS.length]}} />

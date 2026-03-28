@@ -49,6 +49,7 @@ class EventListSerializer(serializers.ModelSerializer):
             'allow_teams', 'max_team_size',
             'attendee_count', 'created_by_name', 'is_registered',
             'is_competition', 'created_at',
+            'is_recurring', 'recurrence_type', 'recurrence_end_date',
         ]
 
     def get_is_registered(self, obj):
@@ -76,6 +77,7 @@ class EventDetailSerializer(serializers.ModelSerializer):
             'attendee_count', 'created_by', 'created_by_name',
             'judging_criteria', 'is_registered', 'is_competition',
             'created_at', 'updated_at',
+            'is_recurring', 'recurrence_type', 'recurrence_end_date', 'recurrence_group_id',
         ]
         read_only_fields = ['created_by', 'created_at', 'updated_at']
 

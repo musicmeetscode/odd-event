@@ -48,6 +48,12 @@ class User(AbstractUser):
 # ─── Events ────────────────────────────────────────────────────
 
 class Event(models.Model):
+    RECURRENCE_CHOICES = [
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+    ]
+
     EVENT_TYPE_CHOICES = [
         ('hackathon', 'Hackathon'),
         ('meeting', 'Meeting'),
@@ -72,6 +78,13 @@ class Event(models.Model):
         on_delete=models.CASCADE,
         related_name='events_created'
     )
+    
+    # Recurrence Fields
+    is_recurring = models.BooleanField(default=False)
+    recurrence_type = models.CharField(max_length=20, choices=RECURRENCE_CHOICES, null=True, blank=True)
+    recurrence_end_date = models.DateTimeField(null=True, blank=True)
+    recurrence_group_id = models.UUIDField(null=True, blank=True, help_text="ID to group all events in a recurring series")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

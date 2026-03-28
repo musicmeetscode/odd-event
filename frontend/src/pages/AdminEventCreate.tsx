@@ -14,9 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import type { EventType } from "@/types/api";
+import { cn } from "@/lib/utils";
 
 const EVENT_TYPES: { value: EventType; label: string }[] = [
   { value: "hackathon", label: "Hackathon" },
@@ -38,6 +40,10 @@ const AdminEventCreate = () => {
   const [endDate, setEndDate] = useState("");
   const [location, setLocation] = useState("");
   const [maxAttendees, setMaxAttendees] = useState("");
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceType, setRecurrenceType] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
+
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -49,6 +55,9 @@ const AdminEventCreate = () => {
         end_date: endDate ? new Date(endDate).toISOString() : null,
         location,
         max_attendees: maxAttendees ? Number(maxAttendees) : null,
+        is_recurring: isRecurring,
+        recurrence_type: isRecurring ? recurrenceType : null,
+        recurrence_end_date: isRecurring && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : null,
       });
       return response.data;
     },
@@ -174,6 +183,48 @@ const AdminEventCreate = () => {
                     min="1"
                   />
                 </div>
+              </div>
+
+              <div className="pt-4 border-t border-border/50">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className={cn("h-5 w-5 transition-colors", isRecurring ? "text-primary animate-spin-slow" : "text-slate-400")} />
+                    <Label htmlFor="recurring" className="font-semibold cursor-pointer">Recurring Event Series</Label>
+                  </div>
+                  <Switch
+                    id="recurring"
+                    checked={isRecurring}
+                    onCheckedChange={setIsRecurring}
+                  />
+                </div>
+
+                {isRecurring && (
+                  <div className="grid gap-4 sm:grid-cols-2 animate-in slide-in-from-top-2 duration-300">
+                    <div className="space-y-2">
+                      <Label>Frequency</Label>
+                      <Select value={recurrenceType} onValueChange={(v: "daily" | "weekly" | "monthly") => setRecurrenceType(v)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="recurrenceEnd">End Date</Label>
+                      <Input
+                        id="recurrenceEnd"
+                        type="date"
+                        value={recurrenceEndDate}
+                        onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                        required={isRecurring}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Button
