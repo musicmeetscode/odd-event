@@ -28,6 +28,8 @@ import Profile from "./pages/Profile";
 import WallOfFame from "./pages/WallOfFame";
 import ProfileCard from "./pages/ProfileCard";
 import Privacy from "./pages/Privacy";
+import PublicSubmission from "./pages/PublicSubmission";
+import AdminAssetManagement from "./pages/AdminAssetManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +53,8 @@ const App = () => (
               <Route path="/events/:eventId/wall-of-fame" element={<WallOfFame />} />
               <Route path="/profile/:eventId/:userId?" element={<ProfileCard />} />
               <Route path="/privacy" element={<Privacy />} />
+              <Route path="/verify/:id" element={<PublicSubmission />} />
+              <Route path="/admin/assets" element={<AdminAssetManagement />} />
             </Route>
 
             {/* Protected: any authenticated user */}

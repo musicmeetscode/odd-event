@@ -42,6 +42,7 @@ const Sidebar = ({ onClose }: { onClose?: () => void }) => {
 
   if (role === "admin") {
     navItems.push({ name: "Users", path: "/users", icon: Users });
+    navItems.push({ name: "Assets", path: "/admin/assets", icon: LayoutDashboard }); 
   }
 
   return (

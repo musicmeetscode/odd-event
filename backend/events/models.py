@@ -74,6 +74,29 @@ class User(AbstractUser):
         return self.display_name or self.username
 
 
+# ─── Certificate Assets ──────────────────────────────────────────
+
+class Partner(models.Model):
+    name = models.CharField(max_length=255)
+    logo = models.ImageField(upload_to='partners/', blank=True, null=True, help_text="Partner logo image")
+    website_url = models.URLField(blank=True)
+
+    def __str__(self):
+        return self.name
+
+class Signatory(models.Model):
+    name = models.CharField(max_length=255)
+    title = models.CharField(max_length=255)
+    organization = models.CharField(max_length=255, blank=True)
+    signature = models.ImageField(upload_to='signatures/', blank=True, null=True, help_text="Digital signature image")
+
+    class Meta:
+        verbose_name_plural = "Signatories"
+
+    def __str__(self):
+        return f"{self.name} ({self.title})"
+
+
 # ─── Events ────────────────────────────────────────────────────
 
 class Event(models.Model):
@@ -114,6 +137,12 @@ class Event(models.Model):
     recurrence_end_date = models.DateTimeField(null=True, blank=True)
     recurrence_group_id = models.UUIDField(null=True, blank=True, help_text="ID to group all events in a recurring series")
     certificates_released = models.BooleanField(default=False, help_text="Whether certificates are available for download")
+
+    # Certificate Details (Relational)
+    partners = models.ManyToManyField(Partner, blank=True, related_name='events')
+    signatory_1 = models.ForeignKey(Signatory, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    signatory_2 = models.ForeignKey(Signatory, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    signatory_3 = models.ForeignKey(Signatory, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

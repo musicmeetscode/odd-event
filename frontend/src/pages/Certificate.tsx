@@ -1,165 +1,258 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { adminService } from "@/services/admin";
 import { eventsService } from "@/services/events";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Download, Loader2, Award } from "lucide-react";
+import { ArrowLeft, Download, Loader2, Award, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas-pro";
-import type { CertificateData } from "@/types/api";
 
 const Certificate = () => {
-  const { id } = useParams<{ id: string }>();
-  const eventId = Number(id);
-  const navigate = useNavigate();
-  const certRef = useRef<HTMLDivElement>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
+    const { id } = useParams<{ id: string }>();
+    const eventId = Number(id);
+    const navigate = useNavigate();
+    const certRef = useRef<HTMLDivElement>(null);
+    const [isGenerating, setIsGenerating] = useState(false);
 
-  const { data: event } = useQuery({
-    queryKey: ["event", eventId],
-    queryFn: () => eventsService.getEvent(eventId),
-  });
-  const { data: cert, isLoading, error } = useQuery<CertificateData>({
-    queryKey: ["certificate", eventId],
-    queryFn: () => adminService.getCertificate(eventId),
-  });
+    // Load Google Fonts
+    useEffect(() => {
+        const link = document.createElement("link");
+        link.href = "https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;700&family=Great+Vibes&family=Inter:wght@300;400;600&display=swap";
+        link.rel = "stylesheet";
+        document.head.appendChild(link);
+    }, []);
 
-  const handleDownload = async () => {
-    if (!certRef.current) return;
-    setIsGenerating(true);
-    try {
-      await new Promise(r => setTimeout(r, 100));
-      const canvas = await html2canvas(certRef.current, { useCORS: true, scale: 3, backgroundColor: null });
-      canvas.toBlob(blob => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `certificate-${cert?.attendee_name || "attendee"}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        setIsGenerating(false);
-      }, "image/png");
-    } catch {
-      toast.error("Failed to generate certificate.");
-      setIsGenerating(false);
-    }
-  };
+    const { data: eventData } = useQuery({
+        queryKey: ["event", eventId],
+        queryFn: () => eventsService.getEvent(eventId),
+    });
 
-  if (isLoading) return <div className="flex justify-center pt-32"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  if (error || !cert) return (
-    <div className="max-w-md mx-auto pt-32 text-center">
-      <p className="text-muted-foreground">You need to be registered for this event to get a certificate.</p>
-      <Button variant="outline" className="mt-4" onClick={() => navigate(`/events/${eventId}`)}>Back to Event</Button>
-    </div>
-  );
+    const { data: cert, isLoading, error } = useQuery<any>({
+        queryKey: ["certificate", eventId],
+        queryFn: () => adminService.getCertificate(eventId),
+    });
 
-  if (event && !event.certificates_released) return (
-    <div className="max-w-md mx-auto pt-32 text-center">
-      <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-primary/10">
-        <Award className="w-8 h-8" />
-      </div>
-      <h2 className="text-xl font-bold text-slate-900 mb-2">Not Yet Available</h2>
-      <p className="text-muted-foreground">Certificates for this event have not been released yet. Please check back later.</p>
-      <Button variant="outline" className="mt-6" onClick={() => navigate(`/events/${eventId}`)}>Back to Event Details</Button>
-    </div>
-  );
+    const handleDownload = async () => {
+        if (!certRef.current) return;
+        setIsGenerating(true);
+        try {
+            // Wait for images and fonts to load
+            await new Promise(r => setTimeout(r, 500));
+            const canvas = await html2canvas(certRef.current, {
+                useCORS: true,
+                scale: 3,
+                backgroundColor: "#ffffff",
+                logging: false,
+                allowTaint: true,
+            });
+            
+            const url = canvas.toDataURL("image/png");
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `Certificate_${cert?.attendee_name?.replace(/\s+/g, '_') || "Achievement"}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setIsGenerating(false);
+            toast.success("Certificate downloaded! 🎉");
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to generate certificate.");
+            setIsGenerating(false);
+        }
+    };
 
-  return (
-    <div className="max-w-3xl mx-auto px-4 py-6 pt-20">
-      <div className="flex items-center gap-2 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate(`/events/${eventId}`)}><ArrowLeft className="h-4 w-4" /></Button>
-        <div>
-          <h1 className="text-2xl font-bold">Your Certificate</h1>
-          <p className="text-sm text-muted-foreground">{event?.title}</p>
+    if (isLoading) return <div className="flex justify-center pt-32"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    if (error || !cert) return (
+        <div className="max-w-md mx-auto pt-32 text-center">
+            <p className="text-muted-foreground">Certificate data not found. Are you registered?</p>
+            <Button variant="outline" className="mt-4" onClick={() => navigate(`/events/${eventId}`)}>Back to Event</Button>
         </div>
-      </div>
+    );
 
-      <div className="flex justify-center mb-4">
-        <Button onClick={handleDownload} disabled={isGenerating}>
-          <Download className="h-4 w-4 mr-1" />{isGenerating ? "Generating..." : "Download Certificate"}
-        </Button>
-      </div>
+    const event = cert.event;
+    const isReleased = event?.certificates_released;
 
-      <div className="flex justify-center">
-        <div
-          ref={certRef}
-          style={{
-            width: 800,
-            height: 560,
-            position: "relative",
-            overflow: "hidden",
-            fontFamily: "'Inter', 'Georgia', serif",
-            background: "linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)",
-            borderRadius: 16,
-            border: "3px solid #2962FF",
-          }}
-        >
-          {/* Border accent */}
-          <div style={{ position: "absolute", inset: 12, border: "1px solid rgba(41, 98, 255, 0.2)", borderRadius: 8 }} />
-
-          {/* Logo */}
-          <div style={{ display: "flex", justifyContent: "center", paddingTop: 32 }}>
-            <img src="/logo.png" alt="Blue Ox" style={{ width: 48, height: 48 }} crossOrigin="anonymous" />
-          </div>
-
-          {/* Title */}
-          <div style={{ textAlign: "center", paddingTop: 8 }}>
-            <div style={{ fontSize: 12, letterSpacing: 4, textTransform: "uppercase", color: "#F58220", fontWeight: 600 }}>
-              Certificate of {cert.submission ? "Achievement" : "Attendance"}
+    if (!isReleased) return (
+        <div className="max-w-md mx-auto pt-32 text-center">
+            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-primary/10">
+                <Award className="w-8 h-8" />
             </div>
-            <div style={{ fontSize: 32, fontWeight: 300, color: "#1a1a2e", marginTop: 4 }}>
-              Blue Ox Events
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div style={{ display: "flex", justifyContent: "center", padding: "12px 0" }}>
-            <div style={{ width: 120, height: 2, background: "linear-gradient(90deg, transparent, #2962FF, transparent)" }} />
-          </div>
-
-          {/* Body */}
-          <div style={{ textAlign: "center", padding: "0 60px" }}>
-            <div style={{ fontSize: 14, color: "#666" }}>This is to certify that</div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: "#2962FF", marginTop: 4 }}>{cert.attendee_name}</div>
-            {cert.attendee_profession && (
-              <div style={{ fontSize: 14, color: "#888", marginTop: 2 }}>{cert.attendee_profession}</div>
-            )}
-            <div style={{ fontSize: 14, color: "#666", marginTop: 12 }}>
-              has successfully {cert.status === "checked_in" ? "attended" : "participated in"}
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 600, color: "#1a1a2e", marginTop: 4 }}>
-              {cert.event_title}
-            </div>
-            <div style={{ fontSize: 13, color: "#888", marginTop: 4 }}>
-              {cert.event_date} • {cert.event_location}
-            </div>
-          </div>
-
-          {/* Submission info */}
-          {cert.submission && (
-            <div style={{ textAlign: "center", marginTop: 12 }}>
-              <div style={{ fontSize: 12, color: "#F58220", fontWeight: 600 }}>
-                Project: {cert.submission.title} — Score: {cert.submission.score}
-              </div>
-            </div>
-          )}
-
-          {/* Award icon */}
-          <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
-            <Award style={{ width: 32, height: 32, color: "#F58220" }} />
-          </div>
-
-          {/* Bottom bar */}
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 6, background: "linear-gradient(90deg, #2962FF, #F58220)" }} />
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Not Yet Available</h2>
+            <p className="text-muted-foreground">Certificates haven't been released by the admin yet.</p>
+            <Button variant="outline" className="mt-6" onClick={() => navigate(`/events/${eventId}`)}>Back to Event</Button>
         </div>
-      </div>
-    </div>
-  );
+    );
+
+    const signatories = [event.signatory_1, event.signatory_2, event.signatory_3].filter(Boolean);
+    const partnersList = event.partners || [];
+    const serialNumber = `BOK-${new Date(event.start_date).getFullYear()}-${cert.attendee_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}${eventId}${cert.submission?.id || '0'}`;
+
+    return (
+        <div className="max-w-5xl mx-auto px-4 py-6 pt-20">
+            <div className="flex items-center justify-between mb-8 no-print">
+                <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => navigate(`/events/${eventId}`)}><ArrowLeft className="h-4 w-4" /></Button>
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">Your Achievement</h1>
+                        <p className="text-sm text-muted-foreground">{event?.title}</p>
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    {cert.sharing_url && (
+                        <Button variant="outline" onClick={() => window.open(cert.sharing_url, '_blank')}>
+                            <ExternalLink className="h-4 w-4 mr-2" /> Verify Details
+                        </Button>
+                    )}
+                    <Button onClick={handleDownload} disabled={isGenerating} className="bg-primary hover:bg-primary/90">
+                        {isGenerating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                        {isGenerating ? "Preparing..." : "Download High-Res"}
+                    </Button>
+                </div>
+            </div>
+
+            <div className="flex justify-center overflow-x-auto pb-10">
+                <div
+                    ref={certRef}
+                    className="relative bg-white shadow-2xl overflow-hidden shrink-0 select-none"
+                    style={{
+                        width: "1000px",
+                        height: "700px",
+                        fontFamily: "'Inter', sans-serif",
+                    }}
+                >
+                    {/* Background Grid */}
+                    <div className="absolute inset-0 opacity-[0.03]" style={{ 
+                        backgroundImage: `radial-gradient(#1a365d 1px, transparent 1px)`,
+                        backgroundSize: '24px 24px'
+                    }}></div>
+
+                    {/* Left Top Banner (Orange) */}
+                    <div className="absolute top-0 left-0 w-64 h-64 bg-[#F58220]" style={{ 
+                        clipPath: 'polygon(0 0, 100% 0, 0 100%)' 
+                    }}></div>
+
+                    {/* Right Bottom Banner (Blue) */}
+                    <div className="absolute bottom-0 right-0 w-80 h-80 bg-[#1a365d]" style={{ 
+                        clipPath: 'polygon(100% 0, 100% 100%, 0 100%)' 
+                    }}></div>
+
+                    {/* Main Content Container */}
+                    <div className="relative h-full flex flex-col items-center px-16 pt-16 z-10 text-center">
+                        
+                        {/* Header Section */}
+                        <div className="flex flex-col items-center mb-4">
+                            <div className="flex items-center gap-4 mb-4">
+                                <img src="/logo.png" alt="Logo" className="w-16 h-16 object-contain" crossOrigin="anonymous" />
+                                <div className="text-left">
+                                    <div className="text-xl font-bold text-[#1a365d] tracking-widest leading-none">BLUE OX</div>
+                                    <div className="text-sm font-medium text-[#F58220] tracking-[0.3em]">KAMPUS</div>
+                                </div>
+                            </div>
+                            {/* <div className="text-[12px] uppercase tracking-[0.4em] text-slate-400 mb-1 font-semibold">Presents</div>
+                            <div className="text-lg font-bold text-[#F58220] uppercase tracking-wide tracking-widest">
+                                {event?.title}
+                            </div>
+                            <div className="text-sm text-slate-400 font-medium mt-1">
+                                {new Date(event?.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}
+                            </div> */}
+                        </div>
+
+                        {/* Title Section */}
+                        <div className="mb-8 mt-2">
+                            <div className="text-[14px] uppercase tracking-[0.5em] text-slate-400 mb-2 font-bold leading-none">Certificate of</div>
+                            <div className="text-6xl font-bold text-[#1a365d] italic" style={{ fontFamily: "'EB Garamond', serif" }}>
+                                {cert.certificate_type.split(' - ')[0] || "Excellence"}
+                            </div>
+                            {cert.rank && (
+                                <div className="text-[#F58220] font-bold text-sm tracking-[0.3em] uppercase mt-2">
+                                    {cert.certificate_type.includes('Winner') ? 'THE WINNER' : cert.certificate_type.split(' - ')[1]?.toUpperCase()}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Recipient Section */}
+                        <div className="mb-8">
+                            <div className="text-[14px] uppercase tracking-[0.4em] text-slate-400 mb-6 font-bold">Presented To</div>
+                            <div 
+                                className="text-7xl text-[#1a1a2e] mb-4" 
+                                style={{ fontFamily: "'Great Vibes', cursive" }}
+                            >
+                                {cert.attendee_name}
+                            </div>
+                            <div className="max-w-2xl mx-auto text-slate-500 leading-relaxed text-[15px]">
+                                {cert.rank ? (
+                                    <>In recognition of outstanding achievement in the <span className="text-[#F58220] font-bold">{event?.title}</span>, 
+                                    demonstrating exceptional skill and creativity with the submission <span className="font-bold text-[#1a365d] italic italic">"{cert.submission?.title}"</span>.</>
+                                ) : (
+                                    <>In recognition of active participation and commitment to excellence during the <span className="text-[#F58220] font-bold">{event?.title}</span>. 
+                                    This achievement reflects a dedication to growth, innovation, and the mission to Code · Connect · Learn · Grow.</>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Footer Info Grid */}
+                        <div className="grid grid-cols-3 gap-12 w-full max-w-4xl mt-1 border-t border-slate-100 pt-8">
+                            <div className="text-center">
+                                <div className="text-[11px] uppercase tracking-[0.3em] text-slate-400 mb-1 font-bold">Date</div>
+                                <div className="text-[14px] font-bold text-[#1a1a2e]">
+                                    {new Date(event?.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                </div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-[11px] uppercase tracking-[0.3em] text-slate-400 mb-1 font-bold">Venue</div>
+                                <div className="text-[14px] font-bold text-[#1a1a2e]">{event?.location || 'Blue Ox Kampus'}</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-[11px] uppercase tracking-[0.3em] text-slate-400 mb-1 font-bold">Partners</div>
+                                <div className="text-[13px] font-bold text-[#1a1a2e]">
+                                    {partnersList.length > 0 ? partnersList.map((p: any) => p.name).join(' · ') : 'Blue Ox Community'}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Signatories Section */}
+                        <div className="flex justify-center gap-24 w-full mt-12 mb-4">
+                            {signatories.map((sig: any, idx: number) => (
+                                <div key={idx} className="flex flex-col items-center">
+                                    <div className="h-16 flex items-end mb-1">
+                                        {sig.signature && (
+                                            <img src={sig.signature} alt="Signature" className="h-14 object-contain" crossOrigin="anonymous" />
+                                        )}
+                                    </div>
+                                    <div className="w-48 h-[1px] bg-slate-200 mb-2"></div>
+                                    <div className="text-[14px] font-bold text-[#1a1a2e] uppercase">{sig.name}</div>
+                                    <div className="text-[10px] uppercase text-slate-400 font-bold tracking-wider leading-tight">{sig.title}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Serial Number & Verification */}
+                        <div className="absolute bottom-4 inset-x-0 flex flex-col items-center text-[9px] text-slate-300 tracking-widest font-mono">
+                            <div>{serialNumber}</div>
+                        </div>
+
+                        {/* Seal */}
+                        <div className="absolute bottom-10 right-10 w-28 h-28 rounded-full border-4 border-[#F58220]/20 flex items-center justify-center p-1 bg-white/10 backdrop-blur-sm shadow-xl">
+                            <div className="w-full h-full rounded-full border border-dashed border-[#F58220]/40 flex flex-col items-center justify-center text-[#F58220]/80">
+                                <div className="text-[8px] font-black tracking-tighter leading-none mb-1 text-center">BLUE OX<br/>KAMPUS</div>
+                                <Award className="w-8 h-8 opacity-40" />
+                                <div className="text-[8px] font-bold mt-1 tracking-widest">2026</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <style>{`
+                @media print {
+                    .no-print { display: none; }
+                    body { background: white; }
+                }
+            `}</style>
+        </div>
+    );
 };
 
 export default Certificate;

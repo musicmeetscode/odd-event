@@ -11,7 +11,9 @@ export interface AuthResponse {
   username: string;
   display_name?: string;
   role: UserRole;
+  avatar_url?: string;
   must_reset_password?: boolean;
+  check_in_result?: any;
 }
 
 export interface User {
@@ -26,6 +28,21 @@ export interface User {
   avatar_url?: string;
   is_flagged?: boolean;
   is_google_connected?: boolean;
+}
+
+export interface Partner {
+  id: number;
+  name: string;
+  logo: string;
+  website_url: string;
+}
+
+export interface Signatory {
+  id: number;
+  name: string;
+  title: string;
+  organization: string;
+  signature: string;
 }
 
 export interface Event {
@@ -46,6 +63,10 @@ export interface Event {
   is_registered: boolean;
   is_competition?: boolean;
   judging_criteria?: JudgingCriteria[];
+  partners: Partner[];
+  signatory_1: Signatory | null;
+  signatory_2: Signatory | null;
+  signatory_3: Signatory | null;
   is_recurring?: boolean;
   recurrence_type?: 'daily' | 'weekly' | 'monthly' | null;
   recurrence_end_date?: string | null;
@@ -58,8 +79,10 @@ export interface EventRegistration {
   id: number;
   event: number;
   user: number;
-  user_display: string;
+  name: string;
   username: string;
+  email: string;
+  profession: string;
   is_flagged?: boolean;
   registered_at: string;
   status: 'registered' | 'checked_in' | 'cancelled';
@@ -200,13 +223,10 @@ export interface Speaker {
 // ─── Certificate ────────────────────────────────────────────────
 
 export interface CertificateData {
-  event_title: string;
-  event_type: string;
-  event_date: string;
-  event_location: string;
+  event: Event;
   attendee_name: string;
-  attendee_profession: string;
-  status: string;
-  registered_at: string;
-  submission: { title: string; score: number } | null;
+  certificate_type: string;
+  rank: number | null;
+  submission: Submission | null;
+  sharing_url: string | null;
 }

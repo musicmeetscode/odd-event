@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { eventsService } from "@/services/events";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Save, Plus, RefreshCw, UsersRound } from "lucide-react";
+import { ArrowLeft, Save, Plus, RefreshCw, UsersRound, Award, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
-import type { EventType } from "@/types/api";
+import { Checkbox } from "@/components/ui/checkbox";
+import type { EventType, Partner, Signatory } from "@/types/api";
 import { cn } from "@/lib/utils";
 
 const EVENT_TYPES: { value: EventType; label: string }[] = [
@@ -35,6 +36,7 @@ const AdminEventForm = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  // Basic Info
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [eventType, setEventType] = useState<EventType>("hackathon");
@@ -50,10 +52,26 @@ const AdminEventForm = () => {
   const [recurrenceType, setRecurrenceType] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
 
+  // Certificate Assets
+  const [selectedPartners, setSelectedPartners] = useState<number[]>([]);
+  const [sig1, setSig1] = useState<string>("none");
+  const [sig2, setSig2] = useState<string>("none");
+  const [sig3, setSig3] = useState<string>("none");
+
   const { data: event, isLoading: isLoadingEvent } = useQuery({
     queryKey: ["event", id],
     queryFn: () => eventsService.getEvent(Number(id)),
     enabled: isEdit,
+  });
+
+  const { data: partners } = useQuery({
+    queryKey: ["partners"],
+    queryFn: eventsService.listPartners,
+  });
+
+  const { data: signatories } = useQuery({
+    queryKey: ["signatories"],
+    queryFn: eventsService.listSignatories,
   });
 
   useEffect(() => {
@@ -70,6 +88,12 @@ const AdminEventForm = () => {
       setIsRecurring(event.is_recurring || false);
       setRecurrenceType(event.recurrence_type || "weekly");
       setRecurrenceEndDate(event.recurrence_end_date ? event.recurrence_end_date.slice(0, 10) : "");
+      
+      // Load assets
+      setSelectedPartners(event.partners?.map((p: Partner) => p.id) || []);
+      setSig1(event.signatory_1?.id ? String(event.signatory_1.id) : "none");
+      setSig2(event.signatory_2?.id ? String(event.signatory_2.id) : "none");
+      setSig3(event.signatory_3?.id ? String(event.signatory_3.id) : "none");
     }
   }, [event]);
 
@@ -88,12 +112,17 @@ const AdminEventForm = () => {
         is_recurring: isRecurring,
         recurrence_type: isRecurring ? recurrenceType : null,
         recurrence_end_date: isRecurring && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : null,
+        // Relational assets
+        partners: selectedPartners,
+        signatory_1: sig1 === "none" ? null : parseInt(sig1),
+        signatory_2: sig2 === "none" ? null : parseInt(sig2),
+        signatory_3: sig3 === "none" ? null : parseInt(sig3),
       };
 
       if (isEdit) {
-        return eventsService.patchEvent(Number(id), payload);
+        return eventsService.patchEvent(Number(id), payload as any);
       } else {
-        return eventsService.createEvent(payload);
+        return eventsService.createEvent(payload as any);
       }
     },
     onSuccess: (data) => {
@@ -102,7 +131,7 @@ const AdminEventForm = () => {
       if (isEdit) queryClient.invalidateQueries({ queryKey: ["event", id] });
       navigate(`/events/${data.id}`);
     },
-    onError: (error: { response?: { data?: { detail?: string; error?: string } } }) => {
+    onError: (error: any) => {
       const msg = error.response?.data?.detail || error.response?.data?.error || "An error occurred.";
       toast.error(String(msg));
     },
@@ -117,6 +146,12 @@ const AdminEventForm = () => {
     mutation.mutate();
   };
 
+  const togglePartner = (id: number) => {
+    setSelectedPartners(prev => 
+        prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+    );
+  };
+
   if (isEdit && isLoadingEvent) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -127,7 +162,7 @@ const AdminEventForm = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto px-4 py-8 pt-24">
         <Button
           variant="ghost"
           size="sm"
@@ -138,11 +173,16 @@ const AdminEventForm = () => {
         </Button>
 
         <Card className="border-border/50 shadow-lg">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-2xl flex items-center gap-2">
               {isEdit ? <Save className="h-6 w-6 text-primary" /> : <Plus className="h-6 w-6 text-primary" />}
               {isEdit ? "Edit Event" : "Create Event"}
             </CardTitle>
+            <Link to="/admin/assets">
+                <Button variant="outline" size="sm" className="gap-2">
+                    <Settings2 className="w-4 h-4" /> Manage Assets
+                </Button>
+            </Link>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -228,8 +268,68 @@ const AdminEventForm = () => {
                 </div>
               </div>
 
+              {/* Certificate Branding */}
+              <div className="pt-6 border-t border-border/50 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Award className="h-5 w-5 text-primary" />
+                  <Label className="text-base font-bold">Certificate Branding</Label>
+                </div>
+                
+                <div className="space-y-3">
+                  <Label>Event Partners (Max 3 visible on certificate)</Label>
+                  <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100 max-h-40 overflow-y-auto">
+                    {partners?.map((p: Partner) => (
+                      <div key={p.id} className="flex items-center space-x-2">
+                        <Checkbox 
+                            id={`partner-${p.id}`} 
+                            checked={selectedPartners.includes(p.id)} 
+                            onCheckedChange={() => togglePartner(p.id)}
+                        />
+                        <label htmlFor={`partner-${p.id}`} className="text-sm font-medium leading-none cursor-pointer truncate">
+                          {p.name}
+                        </label>
+                      </div>
+                    ))}
+                    {(!partners || partners.length === 0) && <p className="text-xs text-muted-foreground italic col-span-2">No partners found. Create some in Assets.</p>}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-2">
+                        <Label>Signatory 1</Label>
+                        <Select value={sig1} onValueChange={setSig1}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                {signatories?.map((s: Signatory) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Signatory 2</Label>
+                        <Select value={sig2} onValueChange={setSig2}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                {signatories?.map((s: Signatory) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Signatory 3</Label>
+                        <Select value={sig3} onValueChange={setSig3}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                {signatories?.map((s: Signatory) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+              </div>
+
               {/* Team Settings */}
-              <div className="pt-4 border-t border-border/50">
+              <div className="pt-6 border-t border-border/50">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <UsersRound className={cn("h-5 w-5", allowTeams ? "text-primary" : "text-slate-400")} />
@@ -259,7 +359,7 @@ const AdminEventForm = () => {
               </div>
 
               {/* Recurrence Settings */}
-              <div className="pt-4 border-t border-border/50">
+              <div className="pt-6 border-t border-border/50">
                 <div className="flex items-center justify-between mb-4">
                   <div className="space-y-0.5">
                     <Label className="text-base font-semibold">Series Info</Label>

@@ -161,4 +161,45 @@ export const eventsService = {
     const response = await apiClient.post("/auth/google/", { token });
     return response.data;
   },
+
+  // Certificates: Partners & Signatories
+  listPartners: async () => {
+    const response = await apiClient.get("/partners/");
+    return response.data;
+  },
+  createPartner: async (data: FormData) => {
+    const response = await apiClient.post("/partners/", data, {
+        headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  },
+  updatePartner: async (id: number, data: FormData) => {
+    const response = await apiClient.patch(`/partners/${id}/`, data, {
+        headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  },
+  deletePartner: async (id: number) => {
+    await apiClient.delete(`/partners/${id}/`);
+  },
+
+  listSignatories: async () => {
+    const response = await apiClient.get("/signatories/");
+    return response.data;
+  },
+  createSignatory: async (data: FormData) => {
+    const response = await apiClient.post("/signatories/", data, {
+        headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  },
+  updateSignatory: async (id: number, data: FormData) => {
+    const response = await apiClient.patch(`/signatories/${id}/`, data, {
+        headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  },
+  deleteSignatory: async (id: number) => {
+    await apiClient.delete(`/signatories/${id}/`);
+  },
 };

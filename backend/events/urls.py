@@ -5,6 +5,8 @@ from rest_framework.routers import DefaultRouter
 router = DefaultRouter()
 router.register(r'events', views.EventViewSet, basename='event')
 router.register(r'questions', views.QuestionViewSet, basename='question')
+router.register(r'partners', views.PartnerViewSet, basename='partner')
+router.register(r'signatories', views.SignatoryViewSet, basename='signatory')
 
 urlpatterns = [
     # Auth
@@ -87,12 +89,15 @@ urlpatterns = [
     # Speaker profile
     path('profile/', views.SpeakerProfileView.as_view(), name='speaker-profile'),
 
-    # Certificate & Profile
+    # Certificate & Sharing
     path('events/<int:event_id>/certificate/', views.CertificateView.as_view(), name='event-certificate'),
+    path('public/submission/<int:pk>/', views.PublicSubmissionView.as_view(), name='public-submission'),
+    
+    # Profile cards
     path('events/<int:event_id>/profile/', views.ProfileDownloadView.as_view(), name='user-profile'),
     path('events/<int:event_id>/profile/<int:user_id>/', views.ProfileDownloadView.as_view(), name='user-profile-shared'),
 
-    # Admin: user list
+    # Admin: user management
     path('users/', views.UserListView.as_view(), name='user-list'),
     path('users/<int:user_id>/', views.UserDetailView.as_view(), name='user-detail'),
     path('users/reset-password/', views.AdminPasswordResetView.as_view(), name='admin-reset-password'),
@@ -107,6 +112,6 @@ urlpatterns = [
     # My events
     path('my-events/', views.MyEventsView.as_view(), name='my-events'),
 
-    # Router URLs (events CRUD)
+    # Router URLs
     path('', include(router.urls)),
 ]

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { eventsService } from "@/services/events";
 import { adminService } from "@/services/admin";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -21,11 +22,12 @@ import {
   Loader2, QrCode, Link2, Plus, Trash2, BarChart3, UserCheck,
   UserPlus, Edit, Download, Clock, UserCircle, UsersRound,
   Check, X, Pencil, Search, Ban, LogIn, MoreHorizontal,
+  Award, Settings2, RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
-import type { Submission, Session, Team, EventAnalytics, JudgingCriteria } from "@/types/api";
+import type { Submission, Session, Team, Partner, Signatory, Event, JudgingCriteria } from "@/types/api";
 
 const TOTAL_SCORE_LIMIT = 100;
 
@@ -76,6 +78,16 @@ const EventDetail = () => {
     queryKey: ["attendees", eventId],
     queryFn: () => adminService.listAttendees(eventId),
   });
+  const { data: partners } = useQuery({
+    queryKey: ["partners"],
+    queryFn: () => eventsService.listPartners(),
+    enabled: isAdmin,
+  });
+  const { data: signatories } = useQuery({
+    queryKey: ["signatories"],
+    queryFn: () => eventsService.listSignatories(),
+    enabled: isAdmin,
+  });
   const { data: teams } = useQuery({
     queryKey: ["teams", eventId],
     queryFn: () => teamsService.listTeams(eventId),
@@ -98,6 +110,14 @@ const EventDetail = () => {
   });
 
   // ─── Mutations ───
+  const updateBrandingMutation = useMutation({
+    mutationFn: (data: Partial<Event>) => eventsService.patchEvent(eventId, data),
+    onSuccess: () => {
+      toast.success("Branding updated");
+      queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+    },
+    onError: () => toast.error("Update failed"),
+  });
   const registerMutation = useMutation({
     mutationFn: () => eventsService.registerForEvent(eventId),
     onSuccess: () => { toast.success("Registered!"); queryClient.invalidateQueries({ queryKey: ["event", eventId] }); },
@@ -793,7 +813,6 @@ const EventDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Criteria */}
             {(() => {
               const criteria = event.judging_criteria || [];
               const currentTotal = criteria.reduce((sum: number, c: JudgingCriteria) => sum + c.max_score, 0);
@@ -816,81 +835,146 @@ const EventDetail = () => {
               };
 
               return (
-                <Card className="border-border/40">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm">Judging Criteria</CardTitle>
-                      <Badge variant={currentTotal === TOTAL_SCORE_LIMIT ? "default" : currentTotal > TOTAL_SCORE_LIMIT ? "destructive" : "outline"} className="text-xs font-mono">
-                        {currentTotal} / {TOTAL_SCORE_LIMIT} pts
-                      </Badge>
-                    </div>
-                    <div className="mt-2">
-                      <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            currentTotal > TOTAL_SCORE_LIMIT ? 'bg-destructive' : currentTotal === TOTAL_SCORE_LIMIT ? 'bg-green-500' : 'bg-primary'
-                          }`}
-                          style={{ width: `${progressPct}%` }}
-                        />
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        {currentTotal === TOTAL_SCORE_LIMIT ? "✓ Total score fully allocated" : currentTotal > TOTAL_SCORE_LIMIT ? `⚠ Exceeds limit by ${currentTotal - TOTAL_SCORE_LIMIT} points` : `${remaining} points remaining`}
-                      </p>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {criteria.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No criteria added yet.</p>}
-                    {criteria.map((c: JudgingCriteria) => (
-                      <div key={c.id} className="border rounded-lg p-3 space-y-2">
-                        {editingCriteriaId === c.id ? (
-                          <>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div><Label className="text-[10px] text-muted-foreground">Name</Label><Input value={editCriteriaForm.name} onChange={e => setEditCriteriaForm(p => ({ ...p, name: e.target.value }))} className="h-8 text-sm" /></div>
-                              <div><Label className="text-[10px] text-muted-foreground">Max Score</Label><Input type="number" min={1} value={editCriteriaForm.max_score} onChange={e => setEditCriteriaForm(p => ({ ...p, max_score: +e.target.value }))} className="h-8 text-sm" /></div>
+                <div className="space-y-4">
+                  <Card className="border-border/40">
+                    <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Award className="h-4 w-4 text-primary" /> Certificate Branding
+                            </CardTitle>
+                            <Link to="/admin/assets" className="text-[10px] text-primary hover:underline flex items-center gap-1">
+                                <Settings2 className="w-3 h-3" /> Manage Assets
+                            </Link>
+                        </div>
+                        <CardDescription className="text-[10px]">Configure partners and signatories for this event's certificates.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 pt-2">
+                        {/* Partners */}
+                        <div className="space-y-2">
+                            <Label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Event Partners</Label>
+                            <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100 max-h-32 overflow-y-auto">
+                                {partners?.map((p: Partner) => (
+                                    <div key={p.id} className="flex items-center space-x-2">
+                                        <Checkbox 
+                                            id={`m-partner-${p.id}`} 
+                                            checked={event?.partners?.some((ep: any) => ep.id === p.id)} 
+                                            onCheckedChange={() => {
+                                                const current = event?.partners?.map((ep: any) => ep.id) || [];
+                                                const next = current.includes(p.id) ? current.filter((id: number) => id !== p.id) : [...current, p.id];
+                                                updateBrandingMutation.mutate({ partners: next });
+                                            }}
+                                        />
+                                        <label htmlFor={`m-partner-${p.id}`} className="text-[11px] font-medium leading-none cursor-pointer truncate">
+                                            {p.name}
+                                        </label>
+                                    </div>
+                                ))}
+                                {(!partners || partners.length === 0) && <p className="text-[10px] text-muted-foreground italic col-span-2">No partners found.</p>}
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div><Label className="text-[10px] text-muted-foreground">Weight</Label><Input type="number" min={0.1} step={0.1} value={editCriteriaForm.weight} onChange={e => setEditCriteriaForm(p => ({ ...p, weight: +e.target.value }))} className="h-8 text-sm" /></div>
-                              <div><Label className="text-[10px] text-muted-foreground">Description</Label><Input value={editCriteriaForm.description} onChange={e => setEditCriteriaForm(p => ({ ...p, description: e.target.value }))} placeholder="Optional" className="h-8 text-sm" /></div>
-                            </div>
-                            <div className="flex justify-end gap-1">
-                              <Button size="sm" variant="ghost" onClick={cancelEditing}><X className="h-3.5 w-3.5 mr-1" />Cancel</Button>
-                              <Button size="sm" onClick={() => saveEditing(c.id)} disabled={!editCriteriaForm.name || editCriteriaForm.max_score < 1}><Check className="h-3.5 w-3.5 mr-1" />Save</Button>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm">{c.name}</span>
-                                <Badge variant="secondary" className="text-[10px] font-mono">{c.max_score} pts</Badge>
-                                <Badge variant="outline" className="text-[10px] font-mono">×{c.weight}</Badge>
+                        </div>
+
+                        {/* Signatories */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            {[1, 2, 3].map((num) => {
+                                const sigKey = `signatory_${num}` as keyof Event;
+                                const currentSigId = (event?.[sigKey] as any)?.id ? String((event?.[sigKey] as any).id) : "none";
+                                return (
+                                    <div key={num} className="space-y-1.5">
+                                        <Label className="text-[10px] text-slate-500">Signatory {num}</Label>
+                                        <Select 
+                                            value={currentSigId} 
+                                            onValueChange={(val) => updateBrandingMutation.mutate({ [sigKey]: val === "none" ? null : parseInt(val) })}
+                                        >
+                                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">None</SelectItem>
+                                                {signatories?.map((s: Signatory) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        {updateBrandingMutation.isPending && <p className="text-[10px] text-primary animate-pulse">Syncing branding...</p>}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/40">
+                    <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm">Judging Criteria</CardTitle>
+                        <Badge variant={currentTotal === TOTAL_SCORE_LIMIT ? "default" : currentTotal > TOTAL_SCORE_LIMIT ? "destructive" : "outline"} className="text-xs font-mono">
+                            {currentTotal} / {TOTAL_SCORE_LIMIT} pts
+                        </Badge>
+                        </div>
+                        <div className="mt-2">
+                        <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                            <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                                currentTotal > TOTAL_SCORE_LIMIT ? 'bg-destructive' : currentTotal === TOTAL_SCORE_LIMIT ? 'bg-green-500' : 'bg-primary'
+                            }`}
+                            style={{ width: `${progressPct}%` }}
+                            />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                            {currentTotal === TOTAL_SCORE_LIMIT ? "✓ Total score fully allocated" : currentTotal > TOTAL_SCORE_LIMIT ? `⚠ Exceeds limit by ${currentTotal - TOTAL_SCORE_LIMIT} points` : `${remaining} points remaining`}
+                        </p>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {criteria.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No criteria added yet.</p>}
+                      {criteria.map((c: JudgingCriteria) => (
+                        <div key={c.id} className="border rounded-lg p-3 space-y-2">
+                          {editingCriteriaId === c.id ? (
+                            <>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div><Label className="text-[10px] text-muted-foreground">Name</Label><Input value={editCriteriaForm.name} onChange={e => setEditCriteriaForm(p => ({ ...p, name: e.target.value }))} className="h-8 text-sm" /></div>
+                                <div><Label className="text-[10px] text-muted-foreground">Max Score</Label><Input type="number" min={1} value={editCriteriaForm.max_score} onChange={e => setEditCriteriaForm(p => ({ ...p, max_score: +e.target.value }))} className="h-8 text-sm" /></div>
                               </div>
-                              {c.description && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{c.description}</p>}
+                              <div className="grid grid-cols-2 gap-2">
+                                <div><Label className="text-[10px] text-muted-foreground">Weight</Label><Input type="number" min={0.1} step={0.1} value={editCriteriaForm.weight} onChange={e => setEditCriteriaForm(p => ({ ...p, weight: +e.target.value }))} className="h-8 text-sm" /></div>
+                                <div><Label className="text-[10px] text-muted-foreground">Description</Label><Input value={editCriteriaForm.description} onChange={e => setEditCriteriaForm(p => ({ ...p, description: e.target.value }))} placeholder="Optional" className="h-8 text-sm" /></div>
+                              </div>
+                              <div className="flex justify-end gap-1">
+                                <Button size="sm" variant="ghost" onClick={cancelEditing}><X className="h-3.5 w-3.5 mr-1" />Cancel</Button>
+                                <Button size="sm" onClick={() => saveEditing(c.id)} disabled={!editCriteriaForm.name || editCriteriaForm.max_score < 1}><Check className="h-3.5 w-3.5 mr-1" />Save</Button>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">{c.name}</span>
+                                  <Badge variant="secondary" className="text-[10px] font-mono">{c.max_score} pts</Badge>
+                                  <Badge variant="outline" className="text-[10px] font-mono">×{c.weight}</Badge>
+                                </div>
+                                {c.description && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{c.description}</p>}
+                              </div>
+                              <div className="flex items-center gap-0.5">
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => startEditing(c)}><Pencil className="h-3 w-3" /></Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteCriteriaMutation.mutate(c.id)}><Trash2 className="h-3 w-3" /></Button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-0.5">
-                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => startEditing(c)}><Pencil className="h-3 w-3" /></Button>
-                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteCriteriaMutation.mutate(c.id)}><Trash2 className="h-3 w-3" /></Button>
-                            </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
+                      ))}
+                      <div className="border-t pt-3 mt-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-medium text-muted-foreground">Add New Criteria</p>
+                          {remaining > 0 && <span className="text-[10px] text-muted-foreground font-mono">{remaining} pts available</span>}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input placeholder="Criteria name" value={newCriteria.name} onChange={e => setNewCriteria(p => ({ ...p, name: e.target.value }))} className="h-8 text-sm" />
+                          <Input type="number" placeholder="Max score" min={1} max={remaining} value={newCriteria.max_score} onChange={e => setNewCriteria(p => ({ ...p, max_score: Math.max(1, +e.target.value) }))} className="h-8 text-sm" />
+                        </div>
+                        {wouldExceed && newCriteria.name && <p className="text-[10px] text-destructive">⚠ Adding {newCriteria.max_score} pts would exceed the {TOTAL_SCORE_LIMIT}-point limit. Max you can add: {remaining} pts.</p>}
+                        <Button size="sm" onClick={() => createCriteriaMutation.mutate()} disabled={!newCriteria.name || wouldExceed || remaining <= 0}>
+                          <Plus className="h-4 w-4 mr-1" />Add Criteria
+                        </Button>
                       </div>
-                    ))}
-                    <div className="border-t pt-3 mt-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-medium text-muted-foreground">Add New Criteria</p>
-                        {remaining > 0 && <span className="text-[10px] text-muted-foreground font-mono">{remaining} pts available</span>}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input placeholder="Criteria name" value={newCriteria.name} onChange={e => setNewCriteria(p => ({ ...p, name: e.target.value }))} className="h-8 text-sm" />
-                        <Input type="number" placeholder="Max score" min={1} max={remaining} value={newCriteria.max_score} onChange={e => setNewCriteria(p => ({ ...p, max_score: Math.max(1, +e.target.value) }))} className="h-8 text-sm" />
-                      </div>
-                      {wouldExceed && newCriteria.name && <p className="text-[10px] text-destructive">⚠ Adding {newCriteria.max_score} pts would exceed the {TOTAL_SCORE_LIMIT}-point limit. Max you can add: {remaining} pts.</p>}
-                      <Button size="sm" onClick={() => createCriteriaMutation.mutate()} disabled={!newCriteria.name || wouldExceed || remaining <= 0}>
-                        <Plus className="h-4 w-4 mr-1" />Add Criteria
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </div>
               );
             })()}
 

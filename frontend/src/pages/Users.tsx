@@ -134,11 +134,11 @@ const Users = () => {
                     <TableCell className="pl-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600">
-                          {user.display_name.charAt(0).toUpperCase()}
+                          {(user.display_name || user.username || "?").charAt(0).toUpperCase()}
                         </div>
                         <div>
                           <p className="font-medium text-slate-800 flex items-center gap-1">
-                            {user.display_name}
+                            {user.display_name || user.username}
                             {user.is_flagged && <span title="Non-conventional name flagged by system" className="cursor-help">🚩</span>}
                           </p>
                           <p className="text-xs text-slate-500">@{user.username}</p>

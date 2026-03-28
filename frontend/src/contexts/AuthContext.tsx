@@ -9,6 +9,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (token: string, username: string, role: UserRole) => void;
+  loginWithGoogle: (credential: string, eventId?: number) => Promise<any>;
   logout: () => Promise<void>;
 }
 
@@ -44,6 +45,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRole(newRole);
   };
 
+  const loginWithGoogle = async (credential: string, eventId?: number) => {
+    const data = await authService.googleLogin(credential, eventId);
+    login(data.token, data.username, data.role);
+    return data;
+  };
+
   const logout = async () => {
     try {
       await authService.logout();
@@ -69,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!token,
         isLoading,
         login,
+        loginWithGoogle,
         logout,
       }}
     >

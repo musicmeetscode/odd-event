@@ -3,7 +3,7 @@ from django.db.models import Sum, F
 from .models import (
     User, Event, EventRegistration, Session, SpeakerSession,
     Question, Answer, Submission, JudgingCriteria, JudgeAssignment, Score,
-    Team, TeamMember,
+    Team, TeamMember, Partner, Signatory,
 )
 
 
@@ -27,6 +27,19 @@ class RegistrationSerializer(serializers.Serializer):
         return value
 
 
+# ─── Certificate Assets ──────────────────────────────────────────
+
+class PartnerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Partner
+        fields = ['id', 'name', 'logo', 'website_url']
+
+class SignatorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Signatory
+        fields = ['id', 'name', 'title', 'organization', 'signature']
+
+
 # ─── Events ────────────────────────────────────────────────────
 
 class JudgingCriteriaSerializer(serializers.ModelSerializer):
@@ -40,6 +53,7 @@ class EventListSerializer(serializers.ModelSerializer):
     attendee_count = serializers.IntegerField(read_only=True)
     created_by_name = serializers.CharField(source='created_by.display_name', read_only=True)
     is_registered = serializers.SerializerMethodField()
+    partners = PartnerSerializer(many=True, read_only=True)
 
     class Meta:
         model = Event
@@ -50,13 +64,14 @@ class EventListSerializer(serializers.ModelSerializer):
             'attendee_count', 'created_by_name', 'is_registered',
             'is_competition', 'created_at', 'certificates_released',
             'is_recurring', 'recurrence_type', 'recurrence_end_date',
+            'partners',
         ]
 
     def get_is_registered(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.registrations.filter(
-                user=request.user, status='registered'
+                user=request.user, status__in=['registered', 'checked_in']
             ).exists()
         return False
 
@@ -67,6 +82,11 @@ class EventDetailSerializer(serializers.ModelSerializer):
     judging_criteria = JudgingCriteriaSerializer(many=True, read_only=True)
     is_registered = serializers.SerializerMethodField()
     is_competition = serializers.BooleanField(read_only=True)
+    
+    partners = PartnerSerializer(many=True, read_only=True)
+    signatory_1 = SignatorySerializer(read_only=True)
+    signatory_2 = SignatorySerializer(read_only=True)
+    signatory_3 = SignatorySerializer(read_only=True)
 
     class Meta:
         model = Event
@@ -77,7 +97,8 @@ class EventDetailSerializer(serializers.ModelSerializer):
             'attendee_count', 'created_by', 'created_by_name',
             'judging_criteria', 'is_registered', 'is_competition',
             'created_at', 'updated_at',
-            'is_recurring', 'recurrence_type', 'recurrence_end_date', 'recurrence_group_id', 'certificates_released',
+            'is_recurring', 'recurrence_type', 'recurrence_end_date', 'recurrence_group_id', 
+            'certificates_released', 'partners', 'signatory_1', 'signatory_2', 'signatory_3',
         ]
         read_only_fields = ['created_by', 'created_at', 'updated_at']
 
@@ -85,19 +106,24 @@ class EventDetailSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.registrations.filter(
-                user=request.user, status='registered'
+                user=request.user, status__in=['registered', 'checked_in']
             ).exists()
         return False
 
 
 class EventRegistrationSerializer(serializers.ModelSerializer):
-    user_display = serializers.CharField(source='user.display_name', read_only=True)
+    name = serializers.CharField(source='user.display_name', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.CharField(source='user.email', read_only=True)
+    profession = serializers.CharField(source='user.profession', read_only=True)
     is_flagged = serializers.BooleanField(source='user.is_flagged', read_only=True)
 
     class Meta:
         model = EventRegistration
-        fields = ['id', 'event', 'user', 'user_display', 'username', 'is_flagged', 'registered_at', 'status']
+        fields = [
+            'id', 'event', 'user', 'name', 'username', 'email', 'profession', 
+            'is_flagged', 'registered_at', 'status'
+        ]
         read_only_fields = ['id', 'user', 'is_flagged', 'registered_at']
 
 
