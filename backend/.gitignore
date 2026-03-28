@@ -38,9 +38,7 @@ static/
 *.pot
 
 # 🔑 Secrets / Credentials
-.env
-*.env
-.env.*
+
 
 # 🧪 Test / Coverage
 .coverage
