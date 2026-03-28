@@ -24,6 +24,7 @@ class User(AbstractUser):
     bio = models.TextField(blank=True, help_text="Speaker/attendee bio")
     profession = models.CharField(max_length=150, blank=True, help_text="Job title or profession")
     avatar_url = models.URLField(blank=True, help_text="Profile photo URL")
+    google_id = models.CharField(max_length=255, unique=True, null=True, blank=True, help_text="Google OAuth ID")
     is_deleted = models.BooleanField(default=False)
     is_flagged = models.BooleanField(default=False)
 
@@ -112,6 +113,7 @@ class Event(models.Model):
     recurrence_type = models.CharField(max_length=20, choices=RECURRENCE_CHOICES, null=True, blank=True)
     recurrence_end_date = models.DateTimeField(null=True, blank=True)
     recurrence_group_id = models.UUIDField(null=True, blank=True, help_text="ID to group all events in a recurring series")
+    certificates_released = models.BooleanField(default=False, help_text="Whether certificates are available for download")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

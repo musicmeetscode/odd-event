@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, useNavigate, Link } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import Footer from "./Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -23,15 +24,18 @@ const Layout = () => {
   };
 
   if (!isAuthenticated) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-      <Link 
-        to={getHomePath()} 
-        className="mb-6 flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Home
-      </Link>
-      <Outlet />
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-primary/5">
+      <div className="flex-1 flex flex-col items-center justify-center p-4">
+        <Link 
+          to={getHomePath()} 
+          className="mb-6 flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Home
+        </Link>
+        <Outlet />
+      </div>
+      <Footer />
     </div>
   );
 
@@ -74,8 +78,11 @@ const Layout = () => {
           </Button>
         </header>
 
-        <main className="flex-1 overflow-y-auto w-full transition-all">
-          <Outlet />
+        <main className="flex-1 flex flex-col w-full transition-all">
+          <div className="flex-1">
+            <Outlet />
+          </div>
+          <Footer />
         </main>
       </div>
     </div>

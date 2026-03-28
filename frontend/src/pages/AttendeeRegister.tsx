@@ -60,7 +60,7 @@ const AttendeeRegister = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4 w-full">
+    <div className="flex items-center justify-center p-4 w-full h-full">
       <Card className="w-full max-w-md border-border/50 shadow-xl">
         <CardHeader className="text-center pb-2">
           <img src="/logo.png" alt="Blue Ox Events" className="w-14 h-14 mx-auto mb-2" />
@@ -106,6 +106,12 @@ const AttendeeRegister = () => {
                 minLength={6}
               />
             </div>
+
+            <p className="text-[11px] text-muted-foreground leading-relaxed text-center px-2">
+              By creating an account, you agree to our{" "}
+              <Link to="/privacy" className="text-primary hover:underline font-medium">Privacy Policy & Terms</Link>. 
+              You acknowledge that event media may be used for promotional and <b>AI training</b> purposes.
+            </p>
 
             <Button type="submit" className="w-full h-11" disabled={isLoading}>
               {isLoading ? "Creating..." : "Create Account"}

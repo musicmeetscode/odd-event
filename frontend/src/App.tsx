@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Layout from "@/components/Layout";
 import RoleSelection from "./pages/RoleSelection";
@@ -24,12 +25,17 @@ import Certificate from "./pages/Certificate";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
 import Profile from "./pages/Profile";
+import WallOfFame from "./pages/WallOfFame";
+import ProfileCard from "./pages/ProfileCard";
+import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "733475143372-r6cl89i8l2h3n3t68g71h4e0h7o5v0h9.apps.googleusercontent.com"; // Placeholder
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+    <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
         <Toaster />
@@ -42,6 +48,9 @@ const App = () => (
               <Route path="/register" element={<AttendeeRegister />} />
               <Route path="/login" element={<Login />} />
               <Route path="/check-in" element={<CheckIn />} />
+              <Route path="/events/:eventId/wall-of-fame" element={<WallOfFame />} />
+              <Route path="/profile/:eventId/:userId?" element={<ProfileCard />} />
+              <Route path="/privacy" element={<Privacy />} />
             </Route>
 
             {/* Protected: any authenticated user */}
@@ -80,6 +89,7 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
+  </GoogleOAuthProvider>
 );
 
 export default App;

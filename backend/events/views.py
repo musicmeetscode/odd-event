@@ -30,6 +30,7 @@ from .serializers import (
     TeamSerializer, TeamMemberSerializer,
 )
 from .permissions import IsAdminOrReadOnly, IsJudge, IsAdminUser, IsJudgeOrAdmin
+from .google_auth import verify_google_token
 
 
 # ─── Auth ───────────────────────────────────────────────────────
@@ -119,6 +120,81 @@ class LogoutView(APIView):
             {"detail": "No active token found."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+
+class GoogleLoginView(APIView):
+    """
+    Handles Google OAuth2 token verification and login/registration.
+    If already authenticated, it links the Google account.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token = request.data.get('token')
+        if not token:
+            return Response({'error': 'Token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        idinfo = verify_google_token(token)
+        if not idinfo:
+            return Response({'error': 'Invalid token.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        google_id = idinfo['sub']
+        email = idinfo['email']
+        name = idinfo.get('name', '')
+        picture = idinfo.get('picture', '')
+
+        # CASE 1: Authenticated user connecting their Google account
+        if request.user.is_authenticated:
+            # Check if this google_id is already linked to another account
+            existing_user = User.objects.filter(google_id=google_id).exclude(id=request.user.id).first()
+            if existing_user:
+                return Response({'error': 'This Google account is already linked to another user.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            user = request.user
+            user.google_id = google_id
+            if not user.avatar_url:
+                user.avatar_url = picture
+            user.save()
+            return Response({'detail': 'Google account connected successfully.'}, status=status.HTTP_200_OK)
+
+        # CASE 2: Login or Register via Google
+        user = User.objects.filter(google_id=google_id).first()
+        if not user:
+            # Try to link by email if no google_id match
+            user = User.objects.filter(email=email).first()
+            if user:
+                user.google_id = google_id
+                user.save()
+            else:
+                # Create a new user
+                # We use the token as a temporary password placeholder (as requested)
+                # but securely hashed via create_user
+                username = email.split('@')[0]
+                base_username = username
+                counter = 1
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}_{counter}"
+                    counter += 1
+
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=token, # Placeholder as requested
+                    display_name=name,
+                    google_id=google_id,
+                    avatar_url=picture,
+                    role='attendee',
+                )
+
+        # Generate auth token
+        token_obj, _ = Token.objects.get_or_create(user=user)
+        
+        return Response({
+            'token': token_obj.key,
+            'username': user.username,
+            'display_name': user.display_name or user.username,
+            'role': user.role,
+        }, status=status.HTTP_200_OK)
 
 
 class MeView(APIView):
@@ -339,6 +415,22 @@ class EventViewSet(viewsets.ModelViewSet):
                     is_recurring=False, # Instances are not masters
                     recurrence_group_id=event.recurrence_group_id
                 )
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def release_certificates(self, request, pk=None):
+        """Release certificates for the event."""
+        event = self.get_object()
+        event.certificates_released = True
+        event.save()
+        return Response({'detail': 'Certificates released successfully.'})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def unrelease_certificates(self, request, pk=None):
+        """Unrelease certificates for the event."""
+        event = self.get_object()
+        event.certificates_released = False
+        event.save()
+        return Response({'detail': 'Certificates unreleased.'})
 
 class EventRegistrationView(APIView):
     """POST to register, DELETE to unregister."""
@@ -1212,6 +1304,7 @@ class SpeakerProfileView(APIView):
             'profession': request.user.profession,
             'avatar_url': request.user.avatar_url,
             'email': request.user.email,
+            'is_google_connected': bool(request.user.google_id),
         })
 
     def put(self, request):
@@ -1266,4 +1359,77 @@ class CertificateView(APIView):
                 'title': submission.title,
                 'score': submission.total_weighted_score,
             } if submission else None,
+        })
+class WallOfFameView(APIView):
+    """Public view for top performers in an event."""
+    permission_classes = [AllowAny]
+
+    def get(self, request, event_id):
+        try:
+            event = Event.objects.get(id=event_id)
+        except Event.DoesNotExist:
+            return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        submissions = Submission.objects.filter(event=event)
+        entries = []
+        for sub in submissions:
+            total = Score.objects.filter(submission=sub).aggregate(
+                total=Coalesce(
+                    Sum(F('score') * F('criteria__weight'), output_field=FloatField()),
+                    0.0,
+                )
+            )['total']
+            entries.append({
+                'submission_id': sub.id,
+                'title': sub.title,
+                'submitted_by': sub.submitted_by.display_name or sub.submitted_by.username,
+                'bio': sub.submitted_by.bio,
+                'avatar_url': sub.submitted_by.avatar_url,
+                'total_score': round(total, 2),
+            })
+
+        entries.sort(key=lambda x: x['total_score'], reverse=True)
+        # return top 3
+        top_entries = entries[:3]
+        for i, entry in enumerate(top_entries, 1):
+            entry['rank'] = i
+
+        return Response(top_entries)
+
+
+class ProfileDownloadView(APIView):
+    """Data for profile card. Accessible to authenticated users for themselves or public if shared."""
+    permission_classes = [AllowAny] # We check logic inside
+
+    def get(self, request, event_id, user_id=None):
+        try:
+            event = Event.objects.get(id=event_id)
+        except Event.DoesNotExist:
+            return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        target_user = None
+        if user_id:
+            target_user = User.objects.filter(id=user_id).first()
+        elif request.user.is_authenticated:
+            target_user = request.user
+        
+        if not target_user:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check link to event
+        role_label = target_user.role
+        is_judge = JudgeAssignment.objects.filter(event=event, judge=target_user).exists()
+        is_attendee = EventRegistration.objects.filter(event=event, user=target_user).exists()
+
+        if not is_judge and not is_attendee:
+            role_label = "Visitor" # Or restrict access
+
+        return Response({
+            'event_title': event.title,
+            'name': target_user.display_name or target_user.username,
+            'role': target_user.get_role_display(),
+            'profession': target_user.profession,
+            'bio': target_user.bio,
+            'avatar_url': target_user.avatar_url,
+            'is_judge': is_judge,
         })

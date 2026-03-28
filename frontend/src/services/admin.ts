@@ -146,4 +146,14 @@ export const adminService = {
     const response = await apiClient.put("/profile/", data);
     return response.data;
   },
+
+  releaseCertificates: async (eventId: number) => {
+    const response = await apiClient.post(`/events/${eventId}/release_certificates/`);
+    return response.data;
+  },
+
+  unreleaseCertificates: async (eventId: number) => {
+    const response = await apiClient.post(`/events/${eventId}/unrelease_certificates/`);
+    return response.data;
+  },
 };

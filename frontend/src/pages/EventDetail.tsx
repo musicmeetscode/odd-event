@@ -270,14 +270,27 @@ const EventDetail = () => {
             {/* Actions */}
             <div className="flex gap-2 shrink-0">
               {(event.is_competition || event.event_type === "competition" || event.event_type === "hackathon") && (
+                <Button size="sm" onClick={() => navigate(`/events/${eventId}/wall-of-fame`)} className="bg-yellow-400 text-slate-900 hover:bg-yellow-500 border-0">
+                  <Trophy className="h-4 w-4 mr-1.5" />Wall of Fame
+                </Button>
+              )}
+              {(event.is_competition || event.event_type === "competition" || event.event_type === "hackathon") && (
                 <Button size="sm" onClick={() => navigate(`/events/${eventId}/leaderboard`)} className="bg-white/15 hover:bg-white/25 border-0 backdrop-blur-sm">
-                  <Trophy className="h-4 w-4 mr-1.5 text-yellow-300" />Leaderboard
+                  <BarChart3 className="h-4 w-4 mr-1.5" />Leaderboard
                 </Button>
               )}
               {isAdmin && (
                 <>
                   <Button size="sm" onClick={() => navigate(`/events/${eventId}/edit`)} className="bg-white/15 hover:bg-white/25 border-0 backdrop-blur-sm">
                     <Edit className="h-4 w-4 mr-1" />Edit
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    onClick={() => event.certificates_released ? adminService.unreleaseCertificates(eventId).then(() => queryClient.invalidateQueries({ queryKey: ["event", eventId] })) : adminService.releaseCertificates(eventId).then(() => queryClient.invalidateQueries({ queryKey: ["event", eventId] }))} 
+                    className={`${event.certificates_released ? "bg-green-500/40" : "bg-white/15"} hover:bg-white/25 border-0 backdrop-blur-sm`}
+                  >
+                    <Trophy className="h-4 w-4 mr-1" />
+                    {event.certificates_released ? "Certificates Released" : "Release Certificates"}
                   </Button>
                   <Button size="sm" onClick={() => { if (confirm("Delete this event?")) deleteEventMutation.mutate(); }} className="bg-red-500/30 hover:bg-red-500/50 border-0 backdrop-blur-sm">
                     <Trash2 className="h-4 w-4 mr-1" />Delete
@@ -294,7 +307,17 @@ const EventDetail = () => {
             </Button>
           )}
           {!isAdmin && event.is_registered && (
-            <Badge className="mt-4 bg-white/20 text-white border-0 text-sm py-1 px-3">✓ You're registered</Badge>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Badge className="bg-white/20 text-white border-0 text-sm py-1 px-3">✓ You're registered</Badge>
+              {event.certificates_released && (
+                <Button size="sm" variant="secondary" onClick={() => navigate(`/events/${eventId}/certificate`)} className="bg-white text-slate-900 border-0">
+                  <Download className="h-4 w-4 mr-1.5" />Download Certificate
+                </Button>
+              )}
+              <Button size="sm" variant="secondary" onClick={() => navigate(`/profile/${eventId}`)} className="bg-white/20 text-white border-0 backdrop-blur-sm">
+                <UserCircle className="h-4 w-4 mr-1.5" />My Profile Card
+              </Button>
+            </div>
           )}
         </div>
       </div>

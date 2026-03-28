@@ -147,7 +147,7 @@ const CheckIn = () => {
     const eventLocation = selectedEvent?.location || "";
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <div className="p-4 w-full h-full">
         <div className="max-w-2xl mx-auto py-8">
           {/* Success message */}
           <div className="text-center mb-8">
@@ -423,7 +423,7 @@ const CheckIn = () => {
   // ─── Step 2: Fill in details ───
   if (selectedEvent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <div className="flex items-center justify-center p-4 w-full h-full">
         <Card className="w-full max-w-md border-border/50 shadow-xl">
           <CardHeader className="text-center pb-2 relative">
             <Button
@@ -519,7 +519,7 @@ const CheckIn = () => {
 
   // ─── Step 1: Pick an event ───
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4">
+    <div className="p-4 w-full h-full">
       <div className="max-w-3xl mx-auto py-8">
         <div className="text-center mb-8">
           <img src="/logo.png" alt="Blue Ox Events" className="w-16 h-16 mx-auto mb-3" />

@@ -45,7 +45,7 @@ const Sidebar = ({ onClose }: { onClose?: () => void }) => {
   }
 
   return (
-    <aside className="w-64 bg-white text-slate-700 flex flex-col h-screen overflow-y-auto border-r border-slate-200">
+    <aside className="w-64 bg-white text-slate-700 flex flex-col h-full overflow-y-auto border-r border-slate-200">
       {/* Brand */}
       <div
         className="p-6 flex items-center gap-3 cursor-pointer border-b border-slate-100"

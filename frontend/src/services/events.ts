@@ -1,5 +1,5 @@
 import apiClient from "./api";
-import type { Event, EventRegistration, Session, Question, Submission } from "@/types/api";
+import type { Event, EventRegistration, Session, Question, Submission, LeaderboardEntry } from "@/types/api";
 
 export const eventsService = {
   // Events
@@ -141,8 +141,24 @@ export const eventsService = {
   },
 
   // Leaderboard
-  getLeaderboard: async (eventId: number) => {
-    const response = await apiClient.get(`/events/${eventId}/leaderboard/`);
+  getLeaderboard: async (eventId: number): Promise<LeaderboardEntry[]> => {
+    const response = await apiClient.get<LeaderboardEntry[]>(`/events/${eventId}/leaderboard/`);
+    return response.data;
+  },
+
+  getWallOfFame: async (eventId: number): Promise<LeaderboardEntry[]> => {
+    const response = await apiClient.get<LeaderboardEntry[]>(`/events/${eventId}/wall-of-fame/`);
+    return response.data;
+  },
+
+  getProfileCard: async (eventId: number, userId?: number) => {
+    const url = userId ? `/events/${eventId}/profile/${userId}/` : `/events/${eventId}/profile/`;
+    const response = await apiClient.get(url);
+    return response.data;
+  },
+
+  googleLogin: async (token: string) => {
+    const response = await apiClient.post("/auth/google/", { token });
     return response.data;
   },
 };

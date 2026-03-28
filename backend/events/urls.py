@@ -10,6 +10,7 @@ urlpatterns = [
     # Auth
     path('auth/register/', views.RegisterView.as_view(), name='register'),
     path('auth/login/', views.LoginView.as_view(), name='login'),
+    path('auth/google/', views.GoogleLoginView.as_view(), name='google-login'),
     path('auth/logout/', views.LogoutView.as_view(), name='logout'),
     path('auth/me/', views.MeView.as_view(), name='me'),
     path('auth/reset-password/', views.ResetPasswordView.as_view(), name='reset-password'),
@@ -39,8 +40,9 @@ urlpatterns = [
         'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy',
     }), name='event-submission-detail'),
 
-    # Leaderboard
+    # Leaderboard & Wall of Fame
     path('events/<int:event_id>/leaderboard/', views.LeaderboardView.as_view(), name='event-leaderboard'),
+    path('events/<int:event_id>/wall-of-fame/', views.WallOfFameView.as_view(), name='event-wall-of-fame'),
 
     # Admin: judging criteria management
     path('events/<int:event_id>/criteria/', views.JudgingCriteriaViewSet.as_view({
@@ -85,8 +87,10 @@ urlpatterns = [
     # Speaker profile
     path('profile/', views.SpeakerProfileView.as_view(), name='speaker-profile'),
 
-    # Certificate
+    # Certificate & Profile
     path('events/<int:event_id>/certificate/', views.CertificateView.as_view(), name='event-certificate'),
+    path('events/<int:event_id>/profile/', views.ProfileDownloadView.as_view(), name='user-profile'),
+    path('events/<int:event_id>/profile/<int:user_id>/', views.ProfileDownloadView.as_view(), name='user-profile-shared'),
 
     # Admin: user list
     path('users/', views.UserListView.as_view(), name='user-list'),

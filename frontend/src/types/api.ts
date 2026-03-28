@@ -25,6 +25,7 @@ export interface User {
   profession?: string;
   avatar_url?: string;
   is_flagged?: boolean;
+  is_google_connected?: boolean;
 }
 
 export interface Event {
@@ -41,6 +42,7 @@ export interface Event {
   max_team_size: number;
   attendee_count: number;
   created_by_name: string;
+  certificates_released: boolean;
   is_registered: boolean;
   is_competition?: boolean;
   judging_criteria?: JudgingCriteria[];

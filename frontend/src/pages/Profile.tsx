@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminService } from "@/services/admin";
+import { eventsService } from "@/services/events";
+import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,7 +42,6 @@ const Profile = () => {
     onSuccess: (data) => {
       toast.success("Profile updated successfully");
       queryClient.setQueryData(["profile"], data);
-      // Also update auth context or refresh if needed
     },
     onError: () => {
       toast.error("Failed to update profile");
@@ -60,6 +61,19 @@ const Profile = () => {
     );
   }
 
+  const handleGoogleLinkSuccess = async (credentialResponse: CredentialResponse) => {
+    if (credentialResponse.credential) {
+      try {
+        await eventsService.googleLogin(credentialResponse.credential);
+        toast.success("Google account linked successfully");
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
+      } catch (error) {
+        console.error("Google Link Error:", error);
+        toast.error("Failed to link Google account. Check console for details.");
+      }
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500 pt-20">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -70,7 +84,6 @@ const Profile = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Sidebar / Preview */}
         <div className="space-y-6">
           <Card className="overflow-hidden border-none shadow-md">
             <div className="h-24 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
@@ -86,7 +99,6 @@ const Profile = () => {
                   )}
                 </div>
               </div>
-              
               <div className="mt-4 space-y-1">
                 <h2 className="text-xl font-bold text-slate-900">{formData.display_name || profile?.username}</h2>
                 <p className="text-sm font-medium text-blue-600 uppercase tracking-wider">{profile?.role}</p>
@@ -116,14 +128,46 @@ const Profile = () => {
           </Card>
         </div>
 
-        {/* Edit Form */}
         <div className="md:col-span-2 space-y-6">
           <Card className="border-none shadow-sm">
             <CardHeader>
+              <CardTitle>Connected Accounts</CardTitle>
+              <CardDescription>Link your social accounts for faster sign-in.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-slate-50">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm">
+                    <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-900">Google Account</h4>
+                    <p className="text-xs text-slate-500">
+                      {profile?.is_google_connected ? "Connected" : "Not connected"}
+                    </p>
+                  </div>
+                </div>
+                {profile?.is_google_connected ? (
+                  <div className="flex items-center gap-1 text-green-600 font-medium text-sm">
+                    <Save className="w-4 h-4" /> Linked
+                  </div>
+                ) : (
+                  <GoogleLogin
+                    onSuccess={handleGoogleLinkSuccess}
+                    onError={() => toast.error("Google linking failed. Check console for details.")}
+                    theme="outline"
+                    shape="pill"
+                    text="continue_with"
+                  />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-sm">
+            <CardHeader>
               <CardTitle>Profile Details</CardTitle>
-              <CardDescription>
-                This information will be visible to other attendees and event organizers.
-              </CardDescription>
+              <CardDescription>This information will be visible to other attendees and event organizers.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -139,7 +183,6 @@ const Profile = () => {
                       placeholder="Your public name"
                     />
                   </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="profession" className="flex items-center gap-2">
                       <Briefcase className="w-4 h-4 text-slate-400" /> Profession
@@ -152,7 +195,6 @@ const Profile = () => {
                     />
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="avatar_url" className="flex items-center gap-2">
                     <Camera className="w-4 h-4 text-slate-400" /> Avatar URL
@@ -169,7 +211,6 @@ const Profile = () => {
                     </Button>
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="bio" className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-slate-400" /> Bio
@@ -183,19 +224,12 @@ const Profile = () => {
                   />
                   <p className="text-xs text-slate-400 text-right">{formData.bio.length} characters</p>
                 </div>
-
                 <div className="flex justify-end pt-4 border-t">
                   <Button type="submit" disabled={updateProfileMut.isPending} className="px-8 bg-blue-600 hover:bg-blue-700">
                     {updateProfileMut.isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
                     ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        Save Changes
-                      </>
+                      <><Save className="w-4 h-4 mr-2" />Save Changes</>
                     )}
                   </Button>
                 </div>

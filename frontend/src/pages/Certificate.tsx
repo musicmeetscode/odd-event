@@ -58,6 +58,17 @@ const Certificate = () => {
     </div>
   );
 
+  if (event && !event.certificates_released) return (
+    <div className="max-w-md mx-auto pt-32 text-center">
+      <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-primary/10">
+        <Award className="w-8 h-8" />
+      </div>
+      <h2 className="text-xl font-bold text-slate-900 mb-2">Not Yet Available</h2>
+      <p className="text-muted-foreground">Certificates for this event have not been released yet. Please check back later.</p>
+      <Button variant="outline" className="mt-6" onClick={() => navigate(`/events/${eventId}`)}>Back to Event Details</Button>
+    </div>
+  );
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 pt-20">
       <div className="flex items-center gap-2 mb-6">

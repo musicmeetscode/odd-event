@@ -16,7 +16,7 @@ const RoleSelection = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+    <div className="flex items-center justify-center p-4 w-full h-full">
       <Card className="w-full max-w-md border-border/50 shadow-xl">
         <CardContent className="pt-8 pb-8 px-8">
           <div className="text-center mb-8">
