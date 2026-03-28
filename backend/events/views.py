@@ -928,7 +928,7 @@ class AdminPasswordResetView(APIView):
 
 
 class EventAttendeesView(APIView):
-    """Admin/public: list checked-in attendees for an event."""
+    """Admin/public: list attendees for an event. Admin can update status or remove."""
     permission_classes = []
 
     def get(self, request, event_id):
@@ -939,10 +939,53 @@ class EventAttendeesView(APIView):
             'id': r.id,
             'user_id': r.user.id,
             'name': r.user.display_name or r.user.username,
+            'username': r.user.username,
+            'email': r.user.email or '',
+            'profession': r.user.profession or '',
             'status': r.status,
+            'is_flagged': r.user.is_flagged,
             'registered_at': r.registered_at.isoformat(),
         } for r in registrations]
         return Response(data)
+
+    def patch(self, request, event_id):
+        """Admin: update an attendee's registration status."""
+        if not request.user.is_authenticated or request.user.role != 'admin':
+            return Response({'error': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+
+        registration_id = request.data.get('registration_id')
+        new_status = request.data.get('status')
+
+        if new_status not in ('registered', 'checked_in', 'cancelled'):
+            return Response({'error': 'Invalid status.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            reg = EventRegistration.objects.get(id=registration_id, event_id=event_id)
+        except EventRegistration.DoesNotExist:
+            return Response({'error': 'Registration not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        reg.status = new_status
+        reg.save()
+        return Response({
+            'detail': f'Status updated to {new_status}.',
+            'id': reg.id,
+            'status': reg.status,
+        })
+
+    def delete(self, request, event_id):
+        """Admin: remove an attendee registration entirely."""
+        if not request.user.is_authenticated or request.user.role != 'admin':
+            return Response({'error': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+
+        registration_id = request.data.get('registration_id')
+        try:
+            reg = EventRegistration.objects.get(id=registration_id, event_id=event_id)
+        except EventRegistration.DoesNotExist:
+            return Response({'error': 'Registration not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        name = reg.user.display_name or reg.user.username
+        reg.delete()
+        return Response({'detail': f'{name} removed from event.'})
 
 
 # ─── Teams ──────────────────────────────────────────────────────

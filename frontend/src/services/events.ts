@@ -93,6 +93,27 @@ export const eventsService = {
     return response.data;
   },
 
+  // Question moderation
+  answerQuestion: async (questionId: number, answerText: string) => {
+    const response = await apiClient.patch(`/questions/${questionId}/`, {
+      is_answered: true,
+      answer_text: answerText,
+    });
+    return response.data;
+  },
+
+  markQuestionUnanswered: async (questionId: number) => {
+    const response = await apiClient.patch(`/questions/${questionId}/`, {
+      is_answered: false,
+      answer_text: null,
+    });
+    return response.data;
+  },
+
+  deleteQuestion: async (questionId: number) => {
+    await apiClient.delete(`/questions/${questionId}/`);
+  },
+
   // Submissions
   getSubmissions: async (eventId: number) => {
     const response = await apiClient.get<Submission[]>(

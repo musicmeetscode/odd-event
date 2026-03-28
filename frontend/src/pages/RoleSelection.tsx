@@ -1,10 +1,19 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CalendarDays } from "lucide-react";
 
 const RoleSelection = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, role } = useAuth();
+
+  // Redirect authenticated users to their home page
+  if (isAuthenticated) {
+    if (role === "admin") return <Navigate to="/dashboard" replace />;
+    if (role === "judge") return <Navigate to="/judge" replace />;
+    return <Navigate to="/events" replace />;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">

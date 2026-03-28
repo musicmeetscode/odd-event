@@ -49,6 +49,15 @@ export const adminService = {
     return response.data;
   },
 
+  updateCriteria: async (
+    eventId: number,
+    criteriaId: number,
+    data: { name?: string; description?: string; max_score?: number; weight?: number }
+  ) => {
+    const response = await apiClient.patch(`/events/${eventId}/criteria/${criteriaId}/`, data);
+    return response.data;
+  },
+
   deleteCriteria: async (eventId: number, criteriaId: number) => {
     await apiClient.delete(`/events/${eventId}/criteria/${criteriaId}/`);
   },
@@ -75,6 +84,21 @@ export const adminService = {
   // Event Attendees
   listAttendees: async (eventId: number) => {
     const response = await apiClient.get(`/events/${eventId}/attendees/`);
+    return response.data;
+  },
+
+  updateAttendeeStatus: async (eventId: number, registrationId: number, status: string) => {
+    const response = await apiClient.patch(`/events/${eventId}/attendees/`, {
+      registration_id: registrationId,
+      status,
+    });
+    return response.data;
+  },
+
+  removeAttendee: async (eventId: number, registrationId: number) => {
+    const response = await apiClient.delete(`/events/${eventId}/attendees/`, {
+      data: { registration_id: registrationId },
+    });
     return response.data;
   },
 
