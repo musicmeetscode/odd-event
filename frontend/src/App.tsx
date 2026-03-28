@@ -5,15 +5,24 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import Layout from "@/components/Layout";
 import RoleSelection from "./pages/RoleSelection";
 import AttendeeRegister from "./pages/AttendeeRegister";
-import AttendeeLogin from "./pages/AttendeeLogin";
-import UsernameSetup from "./pages/UsernameSetup";
-import SessionSelection from "./pages/SessionSelection";
+import Login from "./pages/AttendeeLogin";
+import EventList from "./pages/EventList";
+import EventDetail from "./pages/EventDetail";
+import SubmissionForm from "./pages/SubmissionForm";
+import JudgeDashboard from "./pages/JudgeDashboard";
+import Leaderboard from "./pages/Leaderboard";
 import QuestionBoard from "./pages/QuestionBoard";
-import SpeakerLogin from "./pages/SpeakerLogin";
-import SpeakerDashboard from "./pages/SpeakerDashboard";
-import SpeakerQAManagement from "./pages/SpeakerQAManagement";
+import CheckIn from "./pages/CheckIn";
+import ResetPassword from "./pages/ResetPassword";
+import AdminEventCreate from "./pages/AdminEventCreate";
+import Agenda from "./pages/Agenda";
+import Speakers from "./pages/Speakers";
+import Certificate from "./pages/Certificate";
+import Dashboard from "./pages/Dashboard";
+import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,23 +35,40 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Public */}
             <Route path="/" element={<RoleSelection />} />
-            <Route path="/attendee-register" element={<AttendeeRegister />} />
-            <Route path="/attendee-login" element={<AttendeeLogin />} />
-            <Route path="/username-setup" element={<UsernameSetup />} />
-            <Route path="/speaker-login" element={<SpeakerLogin />} />
-            <Route path="/questions" element={<QuestionBoard />} />
+            <Route path="/register" element={<AttendeeRegister />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/check-in" element={<CheckIn />} />
 
+            {/* Protected: any authenticated user */}
             <Route element={<ProtectedRoute />}>
-              <Route path="/sessions" element={<SessionSelection />} />
-              <Route path="/speaker-dashboard" element={<SpeakerDashboard />} />
+              <Route path="/events/:id/leaderboard" element={<Leaderboard />} />
+              <Route element={<Layout />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/events" element={<EventList />} />
+                <Route path="/events/create" element={<AdminEventCreate />} />
+                <Route path="/events/:id" element={<EventDetail />} />
+                <Route path="/events/:id/submit" element={<SubmissionForm />} />
+                <Route path="/events/:id/agenda" element={<Agenda />} />
+                <Route path="/events/:id/speakers" element={<Speakers />} />
+                <Route path="/events/:id/certificate" element={<Certificate />} />
+                <Route path="/events/:id/sessions/:sid/questions" element={<QuestionBoard />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                
+                {/* Protected: judges only */}
+                <Route element={<ProtectedRoute requireRole="judge" />}>
+                  <Route path="/judge" element={<JudgeDashboard />} />
+                </Route>
+                
+                {/* Protected: admin only */}
+                <Route element={<ProtectedRoute requireRole="admin" />}>
+                  <Route path="/users" element={<Users />} />
+                </Route>
+              </Route>
             </Route>
 
-            <Route element={<ProtectedRoute requireSpeaker />}>
-              <Route path="/speaker-qa/:id" element={<SpeakerQAManagement />} />
-            </Route>
-
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

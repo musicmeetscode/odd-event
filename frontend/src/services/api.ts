@@ -1,10 +1,8 @@
 import axios from "axios";
 
-// Environment-based API URL
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
-// Create axios instance with default config
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -12,50 +10,28 @@ const apiClient = axios.create({
   },
 });
 
-// Request interceptor: Automatically attach token to requests
+// Attach token to every request
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("devfest-token");
+    const token = localStorage.getItem("events-token");
     if (token) {
       config.headers.Authorization = `Token ${token}`;
     }
-
-    // Debug logging
-    console.log(
-      "🚀 API Request:",
-      config.method?.toUpperCase(),
-      config.url,
-      config.data
-    );
-
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor: Handle common errors (401, 403, etc.)
+// Handle 401 errors globally
 apiClient.interceptors.response.use(
-  (response) => {
-    console.log("✅ API Response:", response.config.url, response.status);
-    return response;
-  },
+  (response) => response,
   (error) => {
-    console.error(
-      "❌ API Error:",
-      error.response?.status,
-      error.response?.data
-    );
-
     if (error.response?.status === 401) {
-      // Token expired or invalid - clear auth and redirect
-      localStorage.removeItem("devfest-token");
-      localStorage.removeItem("devfest-username");
-      localStorage.removeItem("devfest-is-speaker");
+      localStorage.removeItem("events-token");
+      localStorage.removeItem("events-username");
+      localStorage.removeItem("events-role");
       window.location.href = "/";
     }
-
     return Promise.reject(error);
   }
 );

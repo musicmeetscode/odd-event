@@ -1,211 +1,163 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import QuestionItem from "@/components/QuestionItem";
-import { Send, ArrowLeft, Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { questionService } from "@/services/questions";
-import { useWebSocket } from "@/hooks/useWebSocket";
-import { Question } from "@/types/api";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { eventsService } from "@/services/events";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Send, MessageCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import type { Question } from "@/types/api";
 
 const QuestionBoard = () => {
+  const { id, sid } = useParams<{ id: string; sid: string }>();
+  const eventId = Number(id);
+  const sessionId = Number(sid);
   const navigate = useNavigate();
-  const location = useLocation();
-  const { username } = useAuth();
+  const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
+  const wsRef = useRef<WebSocket | null>(null);
 
-  const [sessionId, setSessionId] = useState<number | null>(null);
-  const [sessionTitle, setSessionTitle] = useState<string>("");
-  const [questionText, setQuestionText] = useState("");
+  const [newQuestion, setNewQuestion] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Get session from location state or localStorage
+  const { data: questions, isLoading } = useQuery({
+    queryKey: ["questions", sessionId],
+    queryFn: () => eventsService.getQuestions(sessionId),
+  });
+
+  // WebSocket setup for live Q&A
   useEffect(() => {
-    const session = location.state?.session;
-    const savedSessionId = localStorage.getItem("devfest-session-id");
+    const wsBase = import.meta.env.VITE_WS_URL || "ws://localhost:8000";
+    const ws = new WebSocket(`${wsBase}/ws/session/${sessionId}/`);
+    wsRef.current = ws;
 
-    if (session) {
-      setSessionId(session.id);
-      setSessionTitle(session.title);
-      localStorage.setItem("devfest-session-id", session.id.toString());
-    } else if (savedSessionId) {
-      setSessionId(parseInt(savedSessionId));
-    } else {
-      toast.error("No session selected");
-      navigate("/sessions");
-    }
-  }, [location, navigate]);
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === "new_question" || msg.type === "question_answered") {
+        // Refetch questions on update
+        queryClient.invalidateQueries({ queryKey: ["questions", sessionId] });
+      }
+    };
 
-  // Fetch questions for this session
-  const { data: questions = [], isLoading } = useQuery({
-    queryKey: ['questions', sessionId],
-    queryFn: () => questionService.getQuestions(),
-    enabled: !!sessionId,
-    refetchInterval: 5000, // Poll every 5 seconds as fallback
-  });
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
+  }, [sessionId, queryClient]);
 
-  // WebSocket connection for real-time updates
-  const { isConnected } = useWebSocket(sessionId || 0, {
-    onNewQuestion: (question: Question) => {
-      queryClient.setQueryData(['questions', sessionId], (old: Question[] = []) => {
-        // Avoid duplicates
-        if (old.some(q => q.id === question.id)) return old;
-        return [question, ...old];
-      });
-      toast.info(`New question from ${question.member_name}`);
-    },
-    onQuestionAnswered: (question: Question) => {
-      queryClient.setQueryData(['questions', sessionId], (old: Question[] = []) =>
-        old.map(q => q.id === question.id ? question : q)
-      );
-      toast.success("Question answered by speaker");
-    },
-  });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newQuestion.trim()) return;
 
-  // Mutation for submitting questions
-  const submitMutation = useMutation({
-    mutationFn: (content: string) => questionService.createQuestion(sessionId!, content),
-    onSuccess: () => {
-      setQuestionText("");
-      toast.success("Question submitted successfully!");
-      queryClient.invalidateQueries({ queryKey: ['questions', sessionId] });
-    },
-    onError: () => {
-      toast.error("Failed to submit question. Please try again.");
-    },
-  });
-
-  const handleSubmitQuestion = () => {
-    if (!questionText.trim()) {
-      toast.error("Please enter a question");
-      return;
-    }
-    submitMutation.mutate(questionText.trim());
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmitQuestion();
+    setIsSubmitting(true);
+    try {
+      await eventsService.postQuestion(sessionId, newQuestion);
+      setNewQuestion("");
+      queryClient.invalidateQueries({ queryKey: ["questions", sessionId] });
+    } catch {
+      toast.error("Failed to post question.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="bg-card border-b border-border  top-0 z-10 shadow-material-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4 ">
-          <div className="flex items-center gap-4">
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/sessions")}
-              className="hover:bg-primary/10"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-
-            <div>
-              <div className="text-ceter">
-                <h1 className="text-2xl font-bold text-foreground">
-                  {sessionTitle || 'Session'} Q&A
-                </h1>
-                <p className="text-muted-foreground mt-1">
-                  Ask your questions during the session
-                  {isConnected && <span className="ml-2 text-green-500">● Live</span>}
-                </p>
-              </div>
-            </div>
-            <div className="flex ml-auto items-center gap-3 mb-4">
-              <div className="w-2 h-10 bg-primary rounded-full"></div>
-              <div className="w-2 h-10 bg-secondary rounded-full"></div>
-              <div className="w-2 h-10 bg-accent rounded-full"></div>
-              <div className="w-2 h-10 bg-destructive rounded-full"></div>
-            </div>
+      <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="max-w-3xl mx-auto px-4 py-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2"
+            onClick={() => navigate(`/events/${eventId}`)}
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back to Event
+          </Button>
+          <div className="flex items-center gap-2 mt-2">
+            <MessageCircle className="h-5 w-5 text-primary" />
+            <h1 className="text-lg font-bold">Q&A</h1>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto p-4 md:p-8">
-        {/* Question Input Section. Only shown to speakers */}
-        {localStorage.getItem("speaker") == null && <div className="bg-card rounded-xl p-6 shadow-material-md border border-border mb-8">
-          <h2 className="text-lg font-bold text-foreground mb-4">
-            Ask a Question
-          </h2>
-
-          <div className="space-y-4">
-            <Textarea
-              placeholder="Type your question here..."
-              value={questionText}
-              onChange={(e) => setQuestionText(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="min-h-[100px] resize-none border-2 focus:border-primary transition-colors"
-              maxLength={500}
-            />
-
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-muted-foreground">
-                {questionText.length}/500 characters
-              </span>
-
-              <Button
-                onClick={handleSubmitQuestion}
-                disabled={submitMutation.isPending || !questionText.trim()}
-                className="shadow-material-sm hover:shadow-material-md transition-all"
-              >
-                {submitMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    Submit Question
-                    <Send className="ml-2 w-4 h-4" />
-                  </>
-                )}
-              </Button>
-            </div>
+      {/* Questions */}
+      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-6">
+        {isLoading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        </div>}
-
-        {/* Questions List */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-foreground mb-4">
-            All Questions ({questions.length})
-          </h2>
-
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : questions.length > 0 ? (
-            <div className="space-y-3">
-              {questions.map((q) => (
-                <QuestionItem
-                  questionId={q.id}
-                  key={q.id}
-                  question={q.content}
-                  askerName={q.member_name}
-                  timestamp={new Date(q.created_at).toLocaleTimeString()}
-                  isAnswered={q.is_answered}
-                  answerText={q.answer_text || undefined}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">
-                No questions yet. Be the first to ask!
-              </p>
-            </div>
-          )}
-        </div>
+        ) : questions && questions.length > 0 ? (
+          <div className="space-y-3">
+            {questions.map((q: Question) => (
+              <Card
+                key={q.id}
+                className={`border-border/50 transition-all ${
+                  q.is_answered ? "opacity-70" : ""
+                }`}
+              >
+                <CardContent className="py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <p className="text-sm">{q.content}</p>
+                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                        <span>{q.member_name}</span>
+                        <span>•</span>
+                        <span>
+                          {format(new Date(q.created_at), "h:mm a")}
+                        </span>
+                      </div>
+                      {q.is_answered && q.answer_text && (
+                        <div className="mt-3 p-3 rounded bg-primary/5 border border-primary/10">
+                          <p className="text-sm">{q.answer_text}</p>
+                        </div>
+                      )}
+                    </div>
+                    {q.is_answered && (
+                      <Badge
+                        variant="outline"
+                        className="text-green-500 border-green-500/30 shrink-0"
+                      >
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Answered
+                      </Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-20 text-muted-foreground">
+            <MessageCircle className="h-10 w-10 mx-auto mb-3 opacity-30" />
+            <p>No questions yet. Be the first to ask!</p>
+          </div>
+        )}
       </main>
+
+      {/* Input */}
+      {isAuthenticated && (
+        <footer className="border-t border-border/50 bg-card/50 backdrop-blur-sm sticky bottom-0">
+          <form
+            onSubmit={handleSubmit}
+            className="max-w-3xl mx-auto px-4 py-4 flex gap-2"
+          >
+            <Input
+              value={newQuestion}
+              onChange={(e) => setNewQuestion(e.target.value)}
+              placeholder="Ask a question..."
+              className="flex-1"
+            />
+            <Button type="submit" size="icon" disabled={isSubmitting || !newQuestion.trim()}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
+        </footer>
+      )}
     </div>
   );
 };

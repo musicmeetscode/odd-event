@@ -1,0 +1,36 @@
+import apiClient from "./api";
+import type { JudgeDashboardEvent, Submission, Score } from "@/types/api";
+
+export const judgingService = {
+  getDashboard: async () => {
+    const response = await apiClient.get<JudgeDashboardEvent[]>(
+      "/judge/dashboard/"
+    );
+    return response.data;
+  },
+
+  getSubmissions: async (eventId: number) => {
+    const response = await apiClient.get<Submission[]>(
+      `/events/${eventId}/submissions/`
+    );
+    return response.data;
+  },
+
+  getSubmissionDetail: async (eventId: number, submissionId: number) => {
+    const response = await apiClient.get<Submission>(
+      `/events/${eventId}/submissions/${submissionId}/`
+    );
+    return response.data;
+  },
+
+  submitScores: async (
+    submissionId: number,
+    scores: { criteria: number; score: number; comment?: string }[]
+  ) => {
+    const response = await apiClient.post("/judge/score/", {
+      submission: submissionId,
+      scores,
+    });
+    return response.data;
+  },
+};

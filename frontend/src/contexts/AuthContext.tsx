@@ -1,13 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '@/services/auth';
+import type { UserRole } from '@/types/api';
 
 interface AuthContextType {
   token: string | null;
   username: string | null;
-  isSpeaker: boolean;
+  role: UserRole | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string, username: string, isSpeaker?: boolean) => void;
+  login: (token: string, username: string, role: UserRole) => void;
   logout: () => Promise<void>;
 }
 
@@ -16,59 +17,46 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
-  const [isSpeaker, setIsSpeaker] = useState(false);
+  const [role, setRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load authentication state from localStorage on mount
   useEffect(() => {
-    const savedToken = localStorage.getItem('devfest-token');
-    const savedUsername = localStorage.getItem('devfest-username');
-    const savedIsSpeaker = localStorage.getItem('devfest-is-speaker') === 'true';
-    
+    const savedToken = localStorage.getItem('events-token');
+    const savedUsername = localStorage.getItem('events-username');
+    const savedRole = localStorage.getItem('events-role') as UserRole | null;
+
     if (savedToken && savedUsername) {
       setToken(savedToken);
       setUsername(savedUsername);
-      setIsSpeaker(savedIsSpeaker);
-      console.log('🔐 Restored authentication state:', { username: savedUsername, isSpeaker: savedIsSpeaker });
+      setRole(savedRole);
     }
-    
-    // Set loading to false after checking localStorage
+
     setIsLoading(false);
   }, []);
 
-  const login = (newToken: string, newUsername: string, speaker = false) => {
-    // Save to localStorage
-    localStorage.setItem('devfest-token', newToken);
-    localStorage.setItem('devfest-username', newUsername);
-    localStorage.setItem('devfest-is-speaker', String(speaker));
-    
-    // Update state
+  const login = (newToken: string, newUsername: string, newRole: UserRole) => {
+    localStorage.setItem('events-token', newToken);
+    localStorage.setItem('events-username', newUsername);
+    localStorage.setItem('events-role', newRole);
+
     setToken(newToken);
     setUsername(newUsername);
-    setIsSpeaker(speaker);
-    
-    console.log('✅ User logged in:', { username: newUsername, isSpeaker: speaker });
+    setRole(newRole);
   };
 
   const logout = async () => {
     try {
-      // Call backend API to delete token from database
       await authService.logout();
-      console.log('✅ Backend logout successful');
-    } catch (error) {
-      console.error('⚠️ Backend logout failed, clearing local state anyway:', error);
+    } catch {
+      // Proceed with local cleanup even if server call fails
     } finally {
-      // Always clear localStorage and state, even if backend call fails
-      localStorage.removeItem('devfest-token');
-      localStorage.removeItem('devfest-username');
-      localStorage.removeItem('devfest-is-speaker');
-      
-      // Clear state
+      localStorage.removeItem('events-token');
+      localStorage.removeItem('events-username');
+      localStorage.removeItem('events-role');
+
       setToken(null);
       setUsername(null);
-      setIsSpeaker(false);
-      
-      console.log('👋 User logged out');
+      setRole(null);
     }
   };
 
@@ -77,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         token,
         username,
-        isSpeaker,
+        role,
         isAuthenticated: !!token,
         isLoading,
         login,

@@ -1,146 +1,111 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { authService } from '@/services/auth';
-import { useAuth } from '@/contexts/AuthContext';
-import { Eye, EyeOff } from 'lucide-react';
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { authService } from "@/services/auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 
-export default function AttendeeLogin() {
-  const navigate = useNavigate();
+const Login = () => {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    if (!username.trim() || !password.trim()) return;
 
-    if (!username.trim() || !password.trim()) {
-      setError('Please enter both username and password');
-      return;
-    }
-
-    setLoading(true);
-
+    setIsLoading(true);
     try {
-      const response = await authService.loginAudience(username, password);
+      const data = await authService.login(username, password);
+      login(data.token, data.username, data.role);
+      console.log("data", data);
 
-      // Update auth context (which also saves to localStorage)
-      login(response.token, response.username, false);
-
-      // Navigate to session selection
-      navigate('/sessions');
-    } catch (err: any) {
-      console.error('Login failed:', err);
-      if (err.response?.status === 401) {
-        setError('Invalid username or password');
-      } else if (err.response?.data?.detail) {
-        setError(err.response.data.detail);
-      } else {
-        setError('Login failed. Please try again.');
+      // Force password reset if account was auto-created during check-in
+      if (data.must_reset_password) {
+        toast.info("Please set a new password to continue.");
+        navigate("/reset-password");
+        return;
       }
+
+      toast.success(`Welcome back, ${data.display_name || data.username}!`);
+
+      // Route intelligently by role
+      switch (data.role) {
+        case "judge":
+          navigate("/judge");
+          break;
+        case "admin":
+        case "attendee":
+        default:
+          navigate("/events");
+          break;
+      }
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { non_field_errors?: string[] } } };
+      toast.error(
+        err.response?.data?.non_field_errors?.[0] ||
+          "Invalid credentials. Please try again."
+      );
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            Attendee Login
-          </CardTitle>
-          <CardDescription className="text-center">
-            Sign in to join Q&A sessions
-          </CardDescription>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <Card className="w-full max-w-md border-border/50 shadow-xl">
+        <CardHeader className="text-center pb-2">
+          <img src="/logo.png" alt="Blue Ox Events" className="w-14 h-14 mx-auto mb-2" />
+          <CardTitle className="text-2xl">Sign In</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Login to access your events
+          </p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
-                type="text"
-                placeholder="Enter your username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                disabled={loading}
+                placeholder="Enter your username"
                 autoComplete="username"
-                required
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                  autoComplete="current-password"
-                  className="pr-10"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  disabled={loading}
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+              />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Login'}
+            <Button type="submit" className="w-full h-11" disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
-
-            <div className="text-center text-sm">
-              <span className="text-muted-foreground">Don't have an account? </span>
-              <Button
-                type="button"
-                variant="link"
-                className="p-0 h-auto font-semibold"
-                onClick={() => navigate('/attendee-register')}
-                disabled={loading}
-              >
-                Register here
-              </Button>
-            </div>
-
-            <div className="pt-4 border-t">
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={() => navigate('/')}
-                disabled={loading}
-              >
-                Back to Role Selection
-              </Button>
-            </div>
           </form>
+
+          <p className="text-center text-sm text-muted-foreground mt-6">
+            Don't have an account?{" "}
+            <Link to="/register" className="text-primary hover:underline font-medium">
+              Register
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </div>
   );
-}
+};
+
+export default Login;

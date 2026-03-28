@@ -1,87 +1,59 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Users, Mic } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { CalendarDays } from "lucide-react";
 
 const RoleSelection = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
-        {/* GDG Arc Header */}
-        <div className="text-center mb-12 space-y-4">
-          <div className="flex justify-center gap-2 mb-6">
-            <div className="w-3 h-16 bg-primary rounded-full"></div>
-            <div className="w-3 h-16 bg-secondary rounded-full"></div>
-            <div className="w-3 h-16 bg-accent rounded-full"></div>
-            <div className="w-3 h-16 bg-destructive rounded-full"></div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <Card className="w-full max-w-md border-border/50 shadow-xl">
+        <CardContent className="pt-8 pb-8 px-8">
+          <div className="text-center mb-8">
+            <img src="/logo.png" alt="Events Platform" className="w-20 h-20 mx-auto mb-4" />
+            <h1 className="text-3xl font-bold tracking-tight">Blue Ox Events</h1>
+            <p className="text-muted-foreground mt-2">
+              Discover events, compete, and connect
+            </p>
           </div>
 
-          <h1 className="text-4xl font-bold text-foreground mb-3">
-            DevFest Mbarara 2025 Q&A Live
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            Lets see.. What brings you here?
-          </p>
-        </div>
+          <div className="space-y-3">
+            <Button
+              className="w-full h-14 text-base font-semibold gap-2"
+              onClick={() => navigate("/login")}
+            >
+              <CalendarDays className="h-5 w-5" />
+              Login
+            </Button>
 
-        {/* Role Selection Buttons */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Attendee Button */}
-          <button
-            onClick={() => {
-              localStorage.removeItem("speaker")
-              navigate("/attendee-register")
-            }}
-            className="group relative overflow-hidden bg-card rounded-xl p-8 shadow-material-md hover:shadow-material-lg transition-all duration-300 border-2 border-transparent hover:border-primary"
-          >
-            <div className="relative z-10 flex flex-col items-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                <Users className="w-10 h-10 text-primary" />
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border/50" />
               </div>
-              <div className="text-center">
-                <h3 className="text-2xl font-bold text-foreground mb-2">
-                  I am an Attendee
-                </h3>
-                <p className="text-muted-foreground">
-                  Ask questions during sessions
-                </p>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">or</span>
               </div>
             </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          </button>
 
-          {/* Speaker Button */}
-          <button
-            onClick={() => {
-              localStorage.setItem("speaker", "yes")
-              navigate('/speaker-login')
-              
-            }}
-            className="group relative overflow-hidden bg-card rounded-xl p-8 shadow-material-md hover:shadow-material-lg transition-all duration-300 border-2 border-transparent hover:border-secondary"
-          >
-            <div className="relative z-10 flex flex-col items-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-secondary/10 flex items-center justify-center group-hover:bg-secondary/20 transition-colors">
-                <Mic className="w-10 h-10 text-secondary" />
-              </div>
-              <div className="text-center">
-                <h3 className="text-2xl font-bold text-foreground mb-2">
-                  I am a Speaker
-                </h3>
-                <p className="text-muted-foreground">
-                  Manage your session Q&A
-                </p>
-              </div>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          </button>
-        </div>
+            <Button
+              variant="outline"
+              className="w-full h-12 text-sm"
+              onClick={() => navigate("/register")}
+            >
+              Create an Account
+            </Button>
 
-        {/* Footer */}
-        <p className="text-center text-sm text-muted-foreground mt-8">
-          Powered by Google Developer Groups
-        </p>
-      </div>
+            <Button
+              variant="secondary"
+              className="w-full h-12 text-sm"
+              onClick={() => navigate("/check-in")}
+            >
+              Event Check-In
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

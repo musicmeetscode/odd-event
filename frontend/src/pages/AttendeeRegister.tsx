@@ -1,178 +1,106 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { authService } from '@/services/auth';
-import { useAuth } from '@/contexts/AuthContext';
-import { ArrowRight, Eye, EyeOff, User } from 'lucide-react';
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { authService } from "@/services/auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 
-export default function AttendeeRegister() {
-  const navigate = useNavigate();
+const AttendeeRegister = () => {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
-  const [username, setUsername] = useState(localStorage.getItem("devfest-username") ?? "");
-  const [password, setPassword] = useState(localStorage.getItem("devfest-username") ?? "");
-  const [confirmPassword, setConfirmPassword] = useState(localStorage.getItem("devfest-username") ?? "");
-  const [displayName, setDisplayName] = useState(localStorage.getItem("devfest-username") ?? "");
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  useEffect(() => {
-    if (localStorage.getItem("devfest-username")) {
-      navigate('/sessions');
-    }
-  }, [])
+  const navigate = useNavigate();
 
-  function generateRandomPassword(length = 12) {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-}
-  const handleKeyPress = () => {
-    const generatedPassword = generateRandomPassword();
-    setPassword(generatedPassword);
-    setConfirmPassword(generatedPassword);
-    setDisplayName(username)
-    handleRegister(null)
-    setConfirmPassword(username)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim() || !password.trim()) return;
 
-
-  }
-  const handleRegister = async (e: React.FormEvent) => {
-    if (e) {
-      e.preventDefault();
-    }
-    setError('');
-    console.log(password);
-    console.log(username);
-    console.log(displayName);
-    console.log(confirmPassword);
-
-
-    // Validation
-    if (!username.trim()) {
-      setError('Username is required');
-      return;
-    }
-
-    // if (password.length < 6) {
-    //   setError('Password must be at least 6 characters');
-    //   return;
-    // }
-
-    // if (password !== confirmPassword) {
-    //   setError('Passwords do not match');
-    //   return;
-    // }
-
-    setLoading(true);
-
+    setIsLoading(true);
     try {
-      const response = await authService.registerAudience(
-        username,
-        password,
-        displayName || username
-      );
-
-      // Update auth context (which also saves to localStorage)
-      login(response.token, response.username, false);
-
-      // Navigate to session selection
-      navigate('/sessions');
-    } catch (err: any) {
-      console.error('Registration failed:', err);
-      if (err.response?.data) {
-        // Handle specific error messages from backend
-        const errorData = err.response.data;
-        if (errorData.username) {
-          setError(`Username: ${errorData.username.join(', ')}`);
-        } else if (errorData.password) {
-          setError(`Password: ${errorData.password.join(', ')}`);
-        } else if (errorData.detail) {
-          setError(errorData.detail);
-        } else {
-          setError('Registration failed. Please try again.');
-        }
-      } else {
-        setError('Registration failed. Please try again.');
-      }
+      const data = await authService.register(username, password, displayName || undefined);
+      login(data.token, data.username, data.role);
+      toast.success("Account created! Welcome aboard 🎉");
+      navigate("/events");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: Record<string, string[]> } };
+      const firstError =
+        err.response?.data?.username?.[0] ||
+        err.response?.data?.error ||
+        "Registration failed. Please try again.";
+      toast.error(String(firstError));
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-12 space-y-4">
-          {/* Icon */}
-          <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="w-10 h-10 text-primary" />
-            </div>
-          </div>
-
-          <h1 className="text-4xl font-bold text-foreground">
-            Choose Your Display Name
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Just so we know what to call you!!
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <Card className="w-full max-w-md border-border/50 shadow-xl">
+        <CardHeader className="text-center pb-2">
+          <img src="/logo.png" alt="Blue Ox Events" className="w-14 h-14 mx-auto mb-2" />
+          <CardTitle className="text-2xl">Create Account</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Join to discover and attend events
           </p>
-        </div>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="displayName">Display Name</Label>
+              <Input
+                id="displayName"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="How should we call you?"
+              />
+            </div>
 
-        {/* Form */}
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <Input
-              type="text"
-              placeholder="Enter your name or nickname"
-              value={username}
-              onChange={(e) => {
-                setUsername(e.target.value);
-              }}
-              className="h-14 text-lg border-2 focus:border-primary transition-colors"
-              maxLength={50}
-              autoFocus
-            />
-            {error && (
-              <p className="text-sm text-destructive animate-in fade-in slide-in-from-top-1">
-                {error}
-              </p>
-            )}
-            {username && (
-              <p className="text-sm text-muted-foreground">
-                {username.length}/50 characters
-              </p>
-            )}
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Choose a username"
+                autoComplete="username"
+                required
+              />
+            </div>
 
-          <Button
-            disabled={loading}
-            onClick={handleKeyPress}
-            className="w-full h-14 text-lg font-medium shadow-material-md hover:shadow-material-lg transition-all"
-            size="lg"
-          >
-            Continue
-            <ArrowRight className="ml-2 w-5 h-5" />
-          </Button>
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Min 6 characters"
+                autoComplete="new-password"
+                required
+                minLength={6}
+              />
+            </div>
 
-        {/* Back Link */}
-        <div className="text-center mt-8">
-          <button
-            onClick={() => navigate("/")}
-            className="text-muted-foreground hover:text-primary transition-colors text-sm"
-          >
-            ← Back to role selection
-          </button>
-        </div>
-      </div>
+            <Button type="submit" className="w-full h-11" disabled={isLoading}>
+              {isLoading ? "Creating..." : "Create Account"}
+            </Button>
+          </form>
+
+          <p className="text-center text-sm text-muted-foreground mt-6">
+            Already have an account?{" "}
+            <Link to="/login" className="text-primary hover:underline font-medium">
+              Sign In
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
+
+export default AttendeeRegister;
