@@ -62,5 +62,4 @@ jobs:
               -v /etc/letsencrypt/live:/etc/letsencrypt/live \
               -v /etc/letsencrypt/archive:/etc/letsencrypt/archive \
               -v /etc/letsencrypt/renewal:/etc/letsencrypt/renewal  \
-              --env-file /home/main/odd_event.env \
               ghcr.io/musicmeetscode/odd-event:latest
