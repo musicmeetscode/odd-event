@@ -28,10 +28,13 @@ const Sidebar = ({ onClose }: { onClose?: () => void }) => {
     return false;
   };
 
-  const navItems = [
-    { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-    { name: "Events", path: "/events", icon: CalendarDays },
-  ];
+  const navItems = [];
+
+  if (role === "admin") {
+    navItems.push({ name: "Dashboard", path: "/dashboard", icon: LayoutDashboard });
+  }
+
+  navItems.push({ name: "Events", path: "/events", icon: CalendarDays });
 
   if (role === "admin" || role === "judge") {
     navItems.push({ name: "Judging", path: "/judge", icon: Gavel });
@@ -46,7 +49,12 @@ const Sidebar = ({ onClose }: { onClose?: () => void }) => {
       {/* Brand */}
       <div
         className="p-6 flex items-center gap-3 cursor-pointer border-b border-slate-100"
-        onClick={() => navigate("/dashboard")}
+        onClick={() => {
+          if (role === "admin") navigate("/dashboard");
+          else if (role === "judge") navigate("/judge");
+          else navigate("/events");
+          onClose?.();
+        }}
       >
         <img src="/logo.png" alt="Blue Ox" className="w-8 h-8" />
         <span className="font-bold text-xl tracking-wide text-slate-800">

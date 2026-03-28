@@ -7,14 +7,25 @@ import { Button } from "@/components/ui/button";
 import { Menu, ArrowLeft, Home } from "lucide-react";
 
 const Layout = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, role } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+
+  const getHomePath = () => {
+    if (!isAuthenticated) return "/";
+    if (role === "admin") return "/dashboard";
+    if (role === "judge") return "/judge";
+    return "/events";
+  };
+
+  const handleHomeClick = () => {
+    navigate(getHomePath());
+  };
 
   if (!isAuthenticated) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <Link 
-        to="/" 
+        to={getHomePath()} 
         className="mb-6 flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -42,7 +53,7 @@ const Layout = () => {
         {/* Top Header (Mobile & Desktop) */}
         <header className="flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-40">
           <div className="flex items-center gap-4">
-            <div className="md:hidden flex items-center gap-2 cursor-pointer" onClick={() => navigate("/dashboard")}>
+            <div className="md:hidden flex items-center gap-2 cursor-pointer" onClick={handleHomeClick}>
               <img src="/logo.png" alt="Logo" className="w-8 h-8" />
               <span className="font-bold text-lg text-slate-800">Blue Ox</span>
             </div>
@@ -51,7 +62,7 @@ const Layout = () => {
               variant="ghost"
               size="sm"
               className="hidden md:flex items-center gap-2 text-slate-500 hover:text-primary transition-colors"
-              onClick={() => navigate("/dashboard")}
+              onClick={handleHomeClick}
             >
               <Home className="h-4 w-4" />
               <span>Back to Home</span>

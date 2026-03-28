@@ -48,8 +48,7 @@ const App = () => (
             <Route element={<ProtectedRoute />}>
               <Route path="/events/:id/leaderboard" element={<Leaderboard />} />
               <Route element={<Layout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/events" element={<EventList />} />
+              <Route path="/events" element={<EventList />} />
                 <Route path="/events/create" element={<AdminEventForm />} />
                 <Route path="/events/:id/edit" element={<AdminEventForm />} />
                 <Route path="/events/:id" element={<EventDetail />} />
@@ -68,6 +67,7 @@ const App = () => (
                 
                 {/* Protected: admin only */}
                 <Route element={<ProtectedRoute requireRole="admin" />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/users" element={<Users />} />
                 </Route>
               </Route>
