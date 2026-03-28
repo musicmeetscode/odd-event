@@ -1,71 +1,73 @@
-# DevFest Mbarara 2025 Monorepo
+# Blue Ox Events Platform
 
-Welcome to the central repository for the **DevFest Mbarara 2025** event tools. This monorepo contains the community-driven applications designed to enhance the attendee experience, including a real-time Q&A system and a custom DP generator.
+Welcome to the **Blue Ox Events** platform — a comprehensive, real-time event management system designed for hackathons, conferences, and community meetups.
+
+## 🚀 Key Features
+
+### 📅 Event Management
+- **Recurring Events**: Easily create and manage series (daily, weekly, monthly).
+- **Flexible Types**: Specialized support for Hackathons, Competitions, Workshops, and more.
+- **Agenda & Speakers**: Structured schedules with multi-speaker support.
+
+### 🏆 Competition & Judging
+- **Team Submissions**: Support for individual or team-based project entries.
+- **Custom Criteria**: Admins can define weighted judging criteria per event.
+- **Real-time Leaderboards**: Live scoring updates for high-stakes competitions.
+
+### 💬 Real-time Q&A
+- **Interactive Sessions**: Attendees can submit questions in real-time.
+- **Moderation**: Speakers and admins can answer and manage live Q&A boards.
+
+### 🔐 Security & Management
+- **Smart Flagging**: Automatic detection and flagging (🚩) of non-conventional usernames to help admins identify suspicious registrations.
+- **Soft Delete**: Securely deactivate accounts while preserving historical data and audit trails.
+- **Admin Dashboard**: Real-time platform engagement analytics and user management.
+
+### 📱 Attendee Experience
+- **Easy Check-in**: Instant QR code generation for event detail and check-in pages.
+- **User Profiles**: Personalized profiles for attendees and speakers to showcase bios and professions.
+- **Certificates**: Automatic certificate generation for attendees and participants.
+
+---
 
 ## 📂 Project Structure
 
-This repository is organized into three main components:
-
 | Component | Directory | Description | Tech Stack |
 | :--- | :--- | :--- | :--- |
-| **Backend** | [`/backend`](./backend) | Real-time Q&A engine and API server. | Django, WebSockets, DRF |
-| **Frontend** | [`/frontend`](./frontend) | Public-facing Q&A client for attendees. | React, Vite, Tailwind CSS |
-| **DP Generator** | [`/bethere`](./bethere) | Tool for generating event-themed profile pictures. | React, Tailwind v4, html2canvas |
+| **Backend** | [`/backend`](./backend) | Core API and business logic. | Django, DRF, PostgreSQL |
+| **Frontend** | [`/frontend`](./frontend) | High-performance admin and attendee portal. | React, Vite, Tailwind CSS, Shadcn/UI |
 
 ---
 
 ## 🚀 Getting Started
 
-To get the entire system running locally, follow the setup instructions for each component.
+To get the entire system running locally:
 
-### 1. Backend Setup (Q&A API)
-The backend manages sessions, questions, and real-time WebSocket updates.
-
+### 1. Backend Setup
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py loaddata sample.json
-# Run with Daphne for WebSocket support
-daphne -b 0.0.0.0 -p 8000 devfest_qna.asgi:application
+python manage.py runserver
 ```
-*Detailed guide: [`backend/README.md`](./backend/README.md)*
 
-### 2. Frontend Setup (Q&A Client)
-The attendee-facing application for submitting and viewing questions.
-
+### 2. Frontend Setup
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-*Detailed guide: [`frontend/README.md`](./frontend/README.md)*
-
-### 3. DP Generator Setup (Be There)
-A standalone tool for attendees to generate custom "Be There" social media DPs.
-
-```bash
-cd bethere
-npm install
-npm run dev
-```
-*Detailed guide: [`bethere/README.md`](./bethere/README.md)*
 
 ---
 
-## 🛠️ Architecture Overview
+## 🛠️ Architecture
 
-The system is designed to handle high-concurrency event interactions:
-
-- **Real-time Communication**: Uses Django Channels (WebSockets) for instant question broadcasting.
-- **Micro-frontend Ready**: The frontend and DP generator are independent Vite applications, allowing for separate deployment.
-- **Data Persistence**: Managed via Django ORM (SQLite for dev, PostgreSQL recommended for prod).
-
-## 🤝 Contributing
-
-We welcome contributions! Please refer to the individual component directories for specific contribution guidelines and feature requests.
+- **Backend**: Python/Django with REST Framework.
+- **Frontend**: React with TypeScript, Vite, and Tailwind CSS.
+- **Real-time**: Leverages TanStack Query for efficient data fetching and state management.
+- **Security**: Built-in regex validation, name sanitation, and role-based access control (RBAC).
 
 ## 📄 License
 

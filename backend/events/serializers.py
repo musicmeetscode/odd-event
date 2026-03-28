@@ -10,8 +10,8 @@ from .models import (
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'display_name', 'name', 'role', 'email', 'bio', 'profession', 'avatar_url']
-        read_only_fields = ['id', 'role']
+        fields = ['id', 'username', 'display_name', 'name', 'role', 'email', 'bio', 'profession', 'avatar_url', 'is_flagged']
+        read_only_fields = ['id', 'role', 'is_flagged']
 
 
 class RegistrationSerializer(serializers.Serializer):
@@ -93,11 +93,12 @@ class EventDetailSerializer(serializers.ModelSerializer):
 class EventRegistrationSerializer(serializers.ModelSerializer):
     user_display = serializers.CharField(source='user.display_name', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
+    is_flagged = serializers.BooleanField(source='user.is_flagged', read_only=True)
 
     class Meta:
         model = EventRegistration
-        fields = ['id', 'event', 'user', 'user_display', 'username', 'registered_at', 'status']
-        read_only_fields = ['id', 'user', 'registered_at']
+        fields = ['id', 'event', 'user', 'user_display', 'username', 'is_flagged', 'registered_at', 'status']
+        read_only_fields = ['id', 'user', 'is_flagged', 'registered_at']
 
 
 # ─── Q&A ────────────────────────────────────────────────────────

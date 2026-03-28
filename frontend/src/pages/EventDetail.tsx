@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -22,6 +22,7 @@ import {
   UserPlus, Edit, Download, Clock, UserCircle, UsersRound,
 } from "lucide-react";
 import { format } from "date-fns";
+import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import type { Submission, Session, Team, EventAnalytics } from "@/types/api";
 
@@ -32,10 +33,6 @@ const EventDetail = () => {
   const { isAuthenticated, role } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = role === "admin";
-
-  // ─── Edit state ───
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ title: "", description: "", location: "", event_type: "", allow_teams: false, max_team_size: 5 });
 
   // ─── Session form ───
   const [showSessionForm, setShowSessionForm] = useState(false);
@@ -94,11 +91,6 @@ const EventDetail = () => {
     mutationFn: () => eventsService.registerForEvent(eventId),
     onSuccess: () => { toast.success("Registered!"); queryClient.invalidateQueries({ queryKey: ["event", eventId] }); },
     onError: () => toast.error("Registration failed."),
-  });
-  const updateEventMutation = useMutation({
-    mutationFn: (data: Record<string, unknown>) => eventsService.patchEvent(eventId, data as Partial<typeof event>),
-    onSuccess: () => { toast.success("Event updated!"); setIsEditing(false); queryClient.invalidateQueries({ queryKey: ["event", eventId] }); },
-    onError: () => toast.error("Update failed."),
   });
   const deleteEventMutation = useMutation({
     mutationFn: () => eventsService.deleteEvent(eventId),
@@ -164,15 +156,6 @@ const EventDetail = () => {
     (u: { id: number }) => !(assignedJudges || []).some((a: { judge: number }) => a.judge === u.id)
   );
 
-  const handleStartEdit = () => {
-    setEditForm({
-      title: event.title, description: event.description,
-      location: event.location, event_type: event.event_type,
-      allow_teams: event.allow_teams, max_team_size: event.max_team_size,
-    });
-    setIsEditing(true);
-  };
-
   const handleExport = (type: string) => {
     const token = localStorage.getItem("auth_token");
     const url = adminService.getExportUrl(eventId, type);
@@ -182,44 +165,32 @@ const EventDetail = () => {
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 pt-20">
       {/* ─── Header ─── */}
-      <div className="flex items-center gap-2 mb-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/events")}><ArrowLeft className="h-4 w-4" /></Button>
-        <div className="flex-1">
-          {isEditing ? (
-            <Input value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} className="text-2xl font-bold" />
-          ) : (
-            <h1 className="text-2xl font-bold">{event.title}</h1>
-          )}
-          <div className="flex gap-2 mt-1">
-            <Badge variant="outline">{event.event_type}</Badge>
-            {event.is_competition && <Badge className="bg-secondary/80">Competition</Badge>}
-            {event.allow_teams && <Badge className="bg-blue-600">Teams</Badge>}
-            <Badge variant={event.is_active ? "default" : "destructive"}>{event.is_active ? "Active" : "Inactive"}</Badge>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+        <div className="flex items-start gap-2">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/events")} className="-ml-1"><ArrowLeft className="h-4 w-4" /></Button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold break-words">{event.title}</h1>
+            <div className="flex flex-wrap gap-2 mt-1">
+              <Badge variant="outline">{event.event_type}</Badge>
+              {event.is_competition && <Badge className="bg-secondary/80">Competition</Badge>}
+              {event.allow_teams && <Badge className="bg-blue-600">Teams</Badge>}
+              <Badge variant={event.is_active ? "default" : "destructive"}>{event.is_active ? "Active" : "Inactive"}</Badge>
+            </div>
           </div>
         </div>
-
-
-        {!isEditing && (
-          <div className="flex flex-wrap gap-2">
-            {event.is_competition && (
-              <Button variant="secondary" size="sm" onClick={() => navigate(`/events/${eventId}/leaderboard`)}>
-                <Trophy className="h-4 w-4 mr-1 text-yellow-500" /> Leaderboard
-              </Button>
-            )}
-            {isAdmin && (
-              <>
-                <Button variant="outline" size="sm" onClick={handleStartEdit}><Edit className="h-4 w-4 mr-1" />Edit</Button>
-                <Button variant="destructive" size="sm" onClick={() => { if (confirm("Delete this event?")) deleteEventMutation.mutate(); }}><Trash2 className="h-4 w-4 mr-1" />Delete</Button>
-              </>
-            )}
-          </div>
-        )}
-        {isEditing && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>Cancel</Button>
-            <Button size="sm" onClick={() => updateEventMutation.mutate(editForm)}>Save</Button>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {event.is_competition && (
+            <Button variant="secondary" size="sm" onClick={() => navigate(`/events/${eventId}/leaderboard`)}>
+              <Trophy className="h-4 w-4 mr-1 text-yellow-500" /> Leaderboard
+            </Button>
+          )}
+          {isAdmin && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/events/${eventId}/edit`)}><Edit className="h-4 w-4 mr-1" />Edit</Button>
+              <Button variant="destructive" size="sm" onClick={() => { if (confirm("Delete this event?")) deleteEventMutation.mutate(); }}><Trash2 className="h-4 w-4 mr-1" />Delete</Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ─── Meta ─── */}
@@ -228,19 +199,6 @@ const EventDetail = () => {
         <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{format(new Date(event.start_date), "MMM d, yyyy h:mm a")}</span>
         <span className="flex items-center gap-1"><Users className="h-4 w-4" />{event.attendee_count} attendees</span>
       </div>
-
-      {isEditing && (
-        <Card className="mb-6">
-          <CardContent className="pt-4 space-y-3">
-            <div><Label>Description</Label><Textarea value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} /></div>
-            <div><Label>Location</Label><Input value={editForm.location} onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))} /></div>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2"><input type="checkbox" checked={editForm.allow_teams} onChange={e => setEditForm(p => ({ ...p, allow_teams: e.target.checked }))} /> Allow Teams</label>
-              {editForm.allow_teams && <div><Label>Max Team Size</Label><Input type="number" value={editForm.max_team_size} onChange={e => setEditForm(p => ({ ...p, max_team_size: +e.target.value }))} className="w-20" /></div>}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* ─── Register button ─── */}
       {!isAdmin && isAuthenticated && !event.is_registered && (
@@ -267,10 +225,13 @@ const EventDetail = () => {
             <CardHeader><CardTitle className="text-sm">Attendees ({attendees?.length || 0})</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                {(attendees || []).slice(0, 20).map((a: { id: number; name: string; status: string }) => (
+                {(attendees || []).slice(0, 20).map((a: { id: number; name: string; status: string; is_flagged?: boolean }) => (
                   <div key={a.id} className="flex items-center gap-1.5">
                     <UserCircle className="h-4 w-4 text-muted-foreground" />
-                    <span>{a.name}</span>
+                    <span className="flex items-center gap-1">
+                      {a.name}
+                      {a.is_flagged && <span title="Non-conventional name flagged by system" className="cursor-help">🚩</span>}
+                    </span>
                     {a.status === "checked_in" && <Badge variant="outline" className="text-[10px] px-1">✓</Badge>}
                   </div>
                 ))}
@@ -401,15 +362,33 @@ const EventDetail = () => {
           <TabsContent value="manage" className="space-y-4">
             {/* Sharing */}
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Event URLs & QR</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Link2 className="h-4 w-4" /><code className="text-xs bg-muted px-2 py-1 rounded flex-1">{eventUrl}</code>
-                  <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(eventUrl); toast.success("Copied!"); }}>Copy</Button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <QrCode className="h-4 w-4" /><code className="text-xs bg-muted px-2 py-1 rounded flex-1">{checkInUrl}</code>
-                  <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(checkInUrl); toast.success("Copied!"); }}>Copy</Button>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Event URLs & QR</CardTitle>
+                <CardDescription className="text-[10px]">Use these to share the event with others or for check-in.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                  <div className="space-y-3">
+                    <Label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Event Detail URL</Label>
+                    <div className="flex flex-col items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                      <QRCodeCanvas value={eventUrl} size={140} level="H" includeMargin={true} className="rounded-md shadow-sm bg-white p-1" />
+                      <div className="flex items-center gap-2 w-full">
+                        <code className="text-[10px] bg-white border border-slate-200 px-2 py-1.5 rounded flex-1 truncate">{eventUrl}</code>
+                        <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(eventUrl); toast.success("Copied!"); }} className="h-8">Copy</Button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Public Check-in URL</Label>
+                    <div className="flex flex-col items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                      <QRCodeCanvas value={checkInUrl} size={140} level="H" includeMargin={true} className="rounded-md shadow-sm bg-white p-1" />
+                      <div className="flex items-center gap-2 w-full">
+                        <code className="text-[10px] bg-white border border-slate-200 px-2 py-1.5 rounded flex-1 truncate">{checkInUrl}</code>
+                        <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(checkInUrl); toast.success("Copied!"); }} className="h-8">Copy</Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

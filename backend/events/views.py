@@ -1,3 +1,4 @@
+import re
 from django.db.models import Sum, F, FloatField, Count, Avg
 from django.db.models.functions import Coalesce
 from rest_framework.views import APIView
@@ -139,11 +140,22 @@ class CheckInView(APIView):
     def post(self, request):
         event_id = request.data.get('event_id')
         name = request.data.get('name', '').strip()
+        profession = request.data.get('profession', '').strip()
         email = request.data.get('email', '').strip()
         phone = request.data.get('phone', '').strip()
 
-        if not name:
-            return Response({'error': 'Name is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not name or not profession:
+            return Response({'error': 'Name and Profession are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Regex to prevent injection and limit special characters
+        # Allows alphanumeric, spaces, dots, and hyphens only
+        safe_pattern = re.compile(r"^[a-zA-Z0-9\s\.\-]+$")
+        if not safe_pattern.match(name) or not safe_pattern.match(profession):
+            return Response(
+                {'error': 'Name and Profession can only contain alphanumeric characters, spaces, dots, and hyphens.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         if not event_id:
             return Response({'error': 'Event ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -178,6 +190,7 @@ class CheckInView(APIView):
                 password=default_password,
                 display_name=name,
                 name=name,
+                profession=profession,
                 email=email or '',
                 phone=phone or '',
                 role='attendee',
@@ -238,7 +251,15 @@ class EventViewSet(viewsets.ModelViewSet):
     """
     List/retrieve for everyone.  Create/update/delete for admins.
     """
-    queryset = Event.objects.all()
+    def get_queryset(self):
+        """
+        By default, we filter for 'unique' series entries:
+        Standalone events OR events marked as 'is_recurring=True'.
+        This prevents the list from being cluttered with series instances.
+        """
+        from django.db.models import Q
+        return Event.objects.filter(Q(is_recurring=True) | Q(recurrence_group_id__isnull=True))
+
     permission_classes = [IsAdminOrReadOnly]
 
     def get_serializer_class(self):
@@ -248,14 +269,40 @@ class EventViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         event = serializer.save(created_by=self.request.user)
+        self._handle_recurrence(event)
 
+    def perform_update(self, serializer):
+        old_instance = self.get_object()
+        # Track changes to recurrence fields
+        fields_changed = (
+            old_instance.is_recurring != serializer.validated_data.get('is_recurring', old_instance.is_recurring) or
+            old_instance.recurrence_type != serializer.validated_data.get('recurrence_type', old_instance.recurrence_type) or
+            old_instance.recurrence_end_date != serializer.validated_data.get('recurrence_end_date', old_instance.recurrence_end_date)
+        )
+        
+        event = serializer.save()
+        
+        if fields_changed:
+            # Delete future instances if this was a recurring series
+            if event.recurrence_group_id:
+                Event.objects.filter(
+                    recurrence_group_id=event.recurrence_group_id,
+                    start_date__gt=event.start_date
+                ).delete()
+            
+            # Re-handle recurrence (regenerate if now recurring)
+            self._handle_recurrence(event)
+
+    def _handle_recurrence(self, event):
         if event.is_recurring and event.recurrence_type and event.recurrence_end_date:
             import uuid
             from datetime import timedelta
             
-            group_id = uuid.uuid4()
-            event.recurrence_group_id = group_id
-            event.save(update_fields=['recurrence_group_id'])
+            # Use existing group ID or create new one
+            if not event.recurrence_group_id:
+                group_id = uuid.uuid4()
+                event.recurrence_group_id = group_id
+                event.save(update_fields=['recurrence_group_id'])
             
             current_start = event.start_date
             current_end = event.end_date
@@ -267,8 +314,6 @@ class EventViewSet(viewsets.ModelViewSet):
                 elif event.recurrence_type == 'weekly':
                     current_start += timedelta(weeks=1)
                 elif event.recurrence_type == 'monthly':
-                    # Simple monthly increment (approx 30 days)
-                    # For a truly robust monthly logic, dateutil.relativedelta is preferred
                     current_start += timedelta(days=30)
                 else:
                     break
@@ -278,7 +323,7 @@ class EventViewSet(viewsets.ModelViewSet):
                 if current_start > event.recurrence_end_date:
                     break
                 
-                # Create instance in the series
+                # Clone event for the series
                 Event.objects.create(
                     title=event.title,
                     description=event.description,
@@ -286,12 +331,13 @@ class EventViewSet(viewsets.ModelViewSet):
                     start_date=current_start,
                     end_date=current_end,
                     location=event.location,
+                    created_by=event.created_by,
                     max_attendees=event.max_attendees,
                     allow_teams=event.allow_teams,
                     max_team_size=event.max_team_size,
-                    created_by=event.created_by,
-                    is_recurring=False,
-                    recurrence_group_id=group_id
+                    is_active=event.is_active,
+                    is_recurring=False, # Instances are not masters
+                    recurrence_group_id=event.recurrence_group_id
                 )
 
 class EventRegistrationView(APIView):
@@ -356,7 +402,12 @@ class MyEventsView(APIView):
         registrations = EventRegistration.objects.filter(
             user=request.user, status='registered',
         ).select_related('event')
-        events = [reg.event for reg in registrations]
+        
+        # Consolidate by series if they are recurring
+        # For simplicity, filter for unique events in the series or standing alone
+        from django.db.models import Q
+        events = [reg.event for reg in registrations if reg.event.is_recurring or reg.event.recurrence_group_id is None]
+        
         serializer = EventListSerializer(events, many=True, context={'request': request})
         return Response(serializer.data)
 
@@ -742,18 +793,20 @@ class AdminDashboardView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        from django.db.models import Avg, Count
+        from django.db.models import Avg, Count, Q
         from django.db.models.functions import TruncMonth
         
-        total_events = Event.objects.count()
+        # Total Events = Unique standalone events + Total unique series
+        total_unique_events = Event.objects.filter(Q(is_recurring=True) | Q(recurrence_group_id__isnull=True)).count()
         active_users = User.objects.count()
         total_submissions = Submission.objects.count()
         
         avg_score = Score.objects.aggregate(avg=Avg('score'))['avg']
         avg_rating = round(avg_score, 1) if avg_score else 0.0
 
-        # Event Distribution
-        event_types = Event.objects.values('event_type').annotate(count=Count('id'))
+        # Unique events for distribution metrics
+        unique_events = Event.objects.filter(Q(is_recurring=True) | Q(recurrence_group_id__isnull=True))
+        event_types = unique_events.values('event_type').annotate(count=Count('id'))
         distribution = []
         for et in event_types:
             name = et['event_type'].capitalize() if et['event_type'] else "Other"
@@ -777,13 +830,43 @@ class AdminDashboardView(APIView):
         if not distribution:
             distribution = [{'name': "No Events", 'value': 1}]
 
+        # Engagement Profile Data (Last 5 days)
+        from datetime import datetime, timedelta
+        engagement_data = []
+        now = datetime.now()
+        
+        for i in range(4, -1, -1):
+            day = now - timedelta(days=i)
+            day_str = f"Day {5-i}"
+            
+            # Count registrations that day
+            reg_count = User.objects.filter(
+                date_joined__year=day.year,
+                date_joined__month=day.month,
+                date_joined__day=day.day
+            ).count()
+            
+            # Count submissions that day
+            sub_count = Submission.objects.filter(
+                submitted_at__year=day.year,
+                submitted_at__month=day.month,
+                submitted_at__day=day.day
+            ).count()
+            
+            engagement_data.append({
+                'name': day_str,
+                'uv': sub_count, 
+                'pv': reg_count
+            })
+
         return Response({
-            'total_events': total_events,
+            'total_events': total_unique_events,
             'active_users': active_users,
             'total_submissions': total_submissions,
             'avg_rating': avg_rating,
             'event_distribution': distribution,
             'registration_activity': activity,
+            'engagement_data': engagement_data,
         })
 
 
@@ -805,6 +888,18 @@ class UserDetailView(APIView):
             user.save()
             return Response({'detail': f"Role updated to {role}."})
         return Response({'error': 'Invalid role.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, user_id):
+        try:
+            # We use all_objects to find even if partially deleted
+            user = User.all_objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        user.is_deleted = True
+        user.is_active = False # Also prevent login
+        user.save()
+        return Response({'message': 'User soft-deleted successfully.'})
 
 
 class AdminPasswordResetView(APIView):

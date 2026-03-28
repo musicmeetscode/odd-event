@@ -24,6 +24,7 @@ export interface User {
   bio?: string;
   profession?: string;
   avatar_url?: string;
+  is_flagged?: boolean;
 }
 
 export interface Event {
@@ -43,6 +44,10 @@ export interface Event {
   is_registered: boolean;
   is_competition?: boolean;
   judging_criteria?: JudgingCriteria[];
+  is_recurring?: boolean;
+  recurrence_type?: 'daily' | 'weekly' | 'monthly' | null;
+  recurrence_end_date?: string | null;
+  recurrence_group_id?: string | null;
   created_at: string;
   updated_at?: string;
 }
@@ -53,6 +58,7 @@ export interface EventRegistration {
   user: number;
   user_display: string;
   username: string;
+  is_flagged?: boolean;
   registered_at: string;
   status: 'registered' | 'checked_in' | 'cancelled';
 }

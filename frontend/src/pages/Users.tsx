@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminService } from "@/services/admin";
@@ -24,7 +25,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, KeyRound, UserCog, Shield, ShieldAlert, BadgeCheck, AlertCircle } from "lucide-react";
+import { MoreHorizontal, KeyRound, UserCog, Shield, ShieldAlert, BadgeCheck, AlertCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ const ROLE_COLORS: Record<string, string> = {
 const Users = () => {
   const queryClient = useQueryClient();
   const [resetUserId, setResetUserId] = useState<number | null>(null);
+  const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
   const [newPassword, setNewPassword] = useState("");
 
   const { data: users, isLoading } = useQuery<User[]>({
@@ -69,6 +71,20 @@ const Users = () => {
     },
     onError: () => {
       toast.error("Failed to reset password. Ensure it has at least 6 characters.");
+    },
+  });
+
+  const deleteUserMut = useMutation({
+    mutationFn: (id: number) => adminService.deleteUser(id),
+    onSuccess: () => {
+      toast.success("User deleted successfully.");
+      setDeleteUserId(null);
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      // Also invalidate dashboard stats since user count changed
+      queryClient.invalidateQueries({ queryKey: ["admin", "dashboardStats"] });
+    },
+    onError: () => {
+      toast.error("Failed to delete user.");
     },
   });
 
@@ -121,7 +137,10 @@ const Users = () => {
                           {user.display_name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-medium text-slate-800">{user.display_name}</p>
+                          <p className="font-medium text-slate-800 flex items-center gap-1">
+                            {user.display_name}
+                            {user.is_flagged && <span title="Non-conventional name flagged by system" className="cursor-help">🚩</span>}
+                          </p>
                           <p className="text-xs text-slate-500">@{user.username}</p>
                         </div>
                       </div>
@@ -173,6 +192,14 @@ const Users = () => {
                               </DropdownMenuSubContent>
                             </DropdownMenuPortal>
                           </DropdownMenuSub>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => setDeleteUserId(user.id)}
+                            className="text-red-500 focus:text-red-600 focus:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete User
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -218,6 +245,32 @@ const Users = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteUserId} onOpenChange={(open) => !open && setDeleteUserId(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="w-5 h-5" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this user? This will deactivate their account and hide them from the platform. This action is not easily reversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setDeleteUserId(null)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => deleteUserId && deleteUserMut.mutate(deleteUserId)}
+              disabled={deleteUserMut.isPending}
+            >
+              {deleteUserMut.isPending ? "Deleting..." : "Delete User"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

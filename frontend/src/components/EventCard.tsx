@@ -1,9 +1,10 @@
 import { useNavigate } from "react-router-dom";
-import { Calendar, MapPin, Users } from "lucide-react";
+import { Calendar, MapPin, Users, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Event } from "@/types/api";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const typeColors: Record<string, string> = {
   hackathon: "bg-purple-500/10 text-purple-500 border-purple-500/20",
@@ -28,10 +29,20 @@ export const EventCard = ({ event }: EventCardProps) => {
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-lg leading-snug">{event.title}</CardTitle>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              {event.is_recurring && (
+                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 gap-1 px-1.5 py-0">
+                  <RefreshCw className="h-3 w-3" />
+                  Series
+                </Badge>
+              )}
+              <CardTitle className="text-lg leading-snug">{event.title}</CardTitle>
+            </div>
+          </div>
           <Badge
             variant="outline"
-            className={typeColors[event.event_type] || typeColors.other}
+            className={cn(typeColors[event.event_type] || typeColors.other)}
           >
             {event.event_type}
           </Badge>

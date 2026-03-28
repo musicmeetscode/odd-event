@@ -25,6 +25,11 @@ export const adminService = {
     return response.data;
   },
 
+  deleteUser: async (userId: number) => {
+    const response = await apiClient.delete(`/users/${userId}/`);
+    return response.data;
+  },
+
   adminResetPassword: async (data: { user_id: number; new_password: string }) => {
     const response = await apiClient.post("/users/reset-password/", data);
     return response.data;

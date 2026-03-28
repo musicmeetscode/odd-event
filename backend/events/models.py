@@ -1,8 +1,13 @@
 import uuid
+import re
 from django.db import models
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager
 from django.conf import settings
 
+
+class UserSoftDeleteManager(UserManager):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
 
 class User(AbstractUser):
     ROLE_CHOICES = [
@@ -19,6 +24,29 @@ class User(AbstractUser):
     bio = models.TextField(blank=True, help_text="Speaker/attendee bio")
     profession = models.CharField(max_length=150, blank=True, help_text="Job title or profession")
     avatar_url = models.URLField(blank=True, help_text="Profile photo URL")
+    is_deleted = models.BooleanField(default=False)
+    is_flagged = models.BooleanField(default=False)
+
+    objects = UserSoftDeleteManager()
+    all_objects = models.Manager()
+
+    def save(self, *args, **kwargs):
+        # Auto-flag suspicious names
+        name_to_check = self.display_name or self.name or ""
+        if name_to_check:
+            # 1. Contains a number
+            has_number = any(char.isdigit() for char in name_to_check)
+            # 2. Too short (< 3)
+            too_short = len(name_to_check.strip()) < 3
+            # 3. Repeating characters (3+ same in a row, e.g. "aaaa")
+            has_repeats = bool(re.search(r'(.)\1\1', name_to_check))
+            # 4. Unusual case (all lowercase or all uppercase longer than 3 chars)
+            unusual_case = len(name_to_check) > 3 and (name_to_check.islower() or name_to_check.isupper())
+            
+            if has_number or too_short or has_repeats or unusual_case:
+                self.is_flagged = True
+        
+        super().save(*args, **kwargs)
 
     groups = models.ManyToManyField(
         'auth.Group',

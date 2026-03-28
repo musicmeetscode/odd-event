@@ -55,13 +55,13 @@ const Dashboard = () => {
   const totalPieValues = pieData.reduce((sum: number, item: {value: number}) => sum + item.value, 0);
   const topPiePercentage = totalPieValues > 0 ? Math.round((topPieValue.value / totalPieValues) * 100) : 0;
 
-  // areaData is kept static for visual completeness as a "trend prediction" or engagement representation not yet provided by the API
-  const areaData = [
-    { name: "Day 1", uv: 4000, pv: 2400 },
-    { name: "Day 2", uv: 3000, pv: 1398 },
-    { name: "Day 3", uv: 2000, pv: 9800 },
-    { name: "Day 4", uv: 2780, pv: 3908 },
-    { name: "Day 5", uv: 1890, pv: 4800 },
+  // Real engagement data from stats
+  const areaData = stats.engagement_data || [
+    { name: "Day 1", uv: 0, pv: 0 },
+    { name: "Day 2", uv: 0, pv: 0 },
+    { name: "Day 3", uv: 0, pv: 0 },
+    { name: "Day 4", uv: 0, pv: 0 },
+    { name: "Day 5", uv: 0, pv: 0 },
   ];
 
   return (

@@ -1,22 +1,33 @@
 import { useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, Link } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
+import { Menu, ArrowLeft, Home } from "lucide-react";
 
 const Layout = () => {
   const { isAuthenticated } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
-  if (!isAuthenticated) return <Outlet />;
+  if (!isAuthenticated) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <Link 
+        to="/" 
+        className="mb-6 flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Home
+      </Link>
+      <Outlet />
+    </div>
+  );
 
   return (
     <div className="flex min-h-screen bg-[#f1f5f9]">
       {/* Desktop Sidebar */}
-      <div className="hidden md:block">
+      <div className="hidden md:block sticky top-0 h-screen">
         <Sidebar />
       </div>
 
@@ -28,13 +39,26 @@ const Layout = () => {
       </Sheet>
 
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Header */}
-        <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-40">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/dashboard")}>
-            <img src="/logo.png" alt="Logo" className="w-8 h-8" />
-            <span className="font-bold text-lg text-slate-800">Blue Ox</span>
+        {/* Top Header (Mobile & Desktop) */}
+        <header className="flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-40">
+          <div className="flex items-center gap-4">
+            <div className="md:hidden flex items-center gap-2 cursor-pointer" onClick={() => navigate("/dashboard")}>
+              <img src="/logo.png" alt="Logo" className="w-8 h-8" />
+              <span className="font-bold text-lg text-slate-800">Blue Ox</span>
+            </div>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden md:flex items-center gap-2 text-slate-500 hover:text-primary transition-colors"
+              onClick={() => navigate("/dashboard")}
+            >
+              <Home className="h-4 w-4" />
+              <span>Back to Home</span>
+            </Button>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(true)}>
+
+          <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMobileMenuOpen(true)}>
             <Menu className="h-6 w-6" />
           </Button>
         </header>

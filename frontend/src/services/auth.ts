@@ -35,10 +35,11 @@ export const authService = {
     return response.data;
   },
 
-  checkIn: async (eventId: number, name: string, email?: string, phone?: string) => {
+  checkIn: async (eventId: number, name: string, profession: string, email?: string, phone?: string) => {
     const response = await apiClient.post("/check-in/", {
       event_id: eventId,
       name,
+      profession,
       email: email || "",
       phone: phone || "",
     });

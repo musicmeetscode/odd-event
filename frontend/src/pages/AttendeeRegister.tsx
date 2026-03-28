@@ -8,6 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 
+import { format } from "date-fns";
+
+const toTitleCase = (str: string) => {
+  return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+};
+
 const AttendeeRegister = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -18,11 +24,26 @@ const AttendeeRegister = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) return;
+    if (!username.trim() || !password.trim()) {
+      toast.error("Username and Password are required.");
+      return;
+    }
+
+    if (displayName.trim() && displayName.trim().length < 3) {
+      toast.error("Display Name must be at least 3 characters.");
+      return;
+    }
+
+    const safePattern = /^[a-zA-Z0-9 .-]+$/;
+    if (displayName.trim() && !safePattern.test(displayName)) {
+      toast.error("Display Name can only contain alphanumeric characters, spaces, dots, and hyphens.");
+      return;
+    }
 
     setIsLoading(true);
     try {
-      const data = await authService.register(username, password, displayName || undefined);
+      const formattedName = displayName.trim() ? toTitleCase(displayName.trim()) : undefined;
+      const data = await authService.register(username, password, formattedName);
       login(data.token, data.username, data.role);
       toast.success("Account created! Welcome aboard 🎉");
       navigate("/events");
@@ -39,7 +60,7 @@ const AttendeeRegister = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4 w-full">
       <Card className="w-full max-w-md border-border/50 shadow-xl">
         <CardHeader className="text-center pb-2">
           <img src="/logo.png" alt="Blue Ox Events" className="w-14 h-14 mx-auto mb-2" />

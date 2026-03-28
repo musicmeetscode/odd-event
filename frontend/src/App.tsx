@@ -17,12 +17,13 @@ import Leaderboard from "./pages/Leaderboard";
 import QuestionBoard from "./pages/QuestionBoard";
 import CheckIn from "./pages/CheckIn";
 import ResetPassword from "./pages/ResetPassword";
-import AdminEventCreate from "./pages/AdminEventCreate";
+import AdminEventForm from "./pages/AdminEventForm";
 import Agenda from "./pages/Agenda";
 import Speakers from "./pages/Speakers";
 import Certificate from "./pages/Certificate";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,10 +37,12 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             {/* Public */}
-            <Route path="/" element={<RoleSelection />} />
-            <Route path="/register" element={<AttendeeRegister />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/check-in" element={<CheckIn />} />
+            <Route element={<Layout />}>
+              <Route path="/" element={<RoleSelection />} />
+              <Route path="/register" element={<AttendeeRegister />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/check-in" element={<CheckIn />} />
+            </Route>
 
             {/* Protected: any authenticated user */}
             <Route element={<ProtectedRoute />}>
@@ -47,7 +50,8 @@ const App = () => (
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/events" element={<EventList />} />
-                <Route path="/events/create" element={<AdminEventCreate />} />
+                <Route path="/events/create" element={<AdminEventForm />} />
+                <Route path="/events/:id/edit" element={<AdminEventForm />} />
                 <Route path="/events/:id" element={<EventDetail />} />
                 <Route path="/events/:id/submit" element={<SubmissionForm />} />
                 <Route path="/events/:id/agenda" element={<Agenda />} />
@@ -55,6 +59,7 @@ const App = () => (
                 <Route path="/events/:id/certificate" element={<Certificate />} />
                 <Route path="/events/:id/sessions/:sid/questions" element={<QuestionBoard />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/profile" element={<Profile />} />
                 
                 {/* Protected: judges only */}
                 <Route element={<ProtectedRoute requireRole="judge" />}>

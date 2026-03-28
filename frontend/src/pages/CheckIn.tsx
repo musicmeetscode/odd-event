@@ -53,22 +53,44 @@ const CheckIn = () => {
     }
   };
 
+  const toTitleCase = (str: string) => {
+    return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !selectedEvent) {
-      toast.error("Please enter your name.");
+    if (!name.trim() || !profession.trim() || !selectedEvent) {
+      toast.error("Name and Profession are required.");
+      return;
+    }
+
+    if (name.trim().length < 3 || profession.trim().length < 3) {
+      toast.error("Name and Profession must be at least 3 characters.");
+      return;
+    }
+
+    const safePattern = /^[a-zA-Z0-9 .-]+$/;
+    if (!safePattern.test(name) || !safePattern.test(profession)) {
+      toast.error("Name and Profession can only contain alphanumeric characters, spaces, dots, and hyphens.");
+      return;
+    }
+
+    if (phone && !/^[0-9+ ]+$/.test(phone)) {
+      toast.error("Phone number can only contain digits, spaces and '+'.");
       return;
     }
 
     setIsSubmitting(true);
     try {
+      const formattedName = toTitleCase(name.trim());
       const data = await authService.checkIn(
         selectedEvent.id,
-        name,
+        formattedName,
+        toTitleCase(profession.trim()),
         email || undefined,
         phone || undefined
       );
-      setResult(data);
+      setResult({ ...data, display_name: formattedName });
       toast.success("Checked in! 🎉");
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } };
@@ -431,12 +453,13 @@ const CheckIn = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="profession">Profession / Title</Label>
+                <Label htmlFor="profession">Profession / Title *</Label>
                 <Input
                   id="profession"
                   value={profession}
                   onChange={(e) => setProfession(e.target.value)}
                   placeholder="Software Developer"
+                  required
                 />
               </div>
 
