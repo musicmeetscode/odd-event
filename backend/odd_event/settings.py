@@ -61,6 +61,9 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:8080',
     'http://127.0.0.1:8080',
     'http://192.168.17.134:8080',
+    'https://events.blueoxkampus.com',
+    'http://events.blueoxkampus.com',
+    'https://oddevent.lightbeammedia.xyz',
 ]
 # If env provides more origins, add them
 env_cors = os.getenv('CORS_ALLOWED_ORIGINS')
@@ -69,6 +72,12 @@ if env_cors:
 
 CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'True') == 'True'
 CORS_ALLOW_CREDENTIALS = True
+
+# CSRF Trusted Origins for production
+CSRF_TRUSTED_ORIGINS = [
+    'https://events.blueoxkampus.com',
+    'https://oddevent.lightbeammedia.xyz',
+]
 
 ROOT_URLCONF = 'odd_event.urls'
 
