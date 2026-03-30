@@ -1,9 +1,9 @@
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminService } from "@/services/admin";
 import { User, UserRole } from "@/types/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -25,11 +25,12 @@ import {
   DropdownMenuSubContent,
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, KeyRound, UserCog, Shield, ShieldAlert, BadgeCheck, AlertCircle, Trash2 } from "lucide-react";
+import { MoreHorizontal, KeyRound, UserCog, Shield, BadgeCheck, AlertCircle, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 const ROLE_COLORS: Record<string, string> = {
   admin: "bg-red-100 text-red-700 border-red-200",
@@ -38,16 +39,53 @@ const ROLE_COLORS: Record<string, string> = {
   attendee: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
+const PAGE_SIZE = 20;
+
 const Users = () => {
   const queryClient = useQueryClient();
   const [resetUserId, setResetUserId] = useState<number | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ["admin", "users"],
     queryFn: () => adminService.listUsers(),
   });
+
+  // ─── Filtered + Paginated users ───
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+    return users.filter((u) => {
+      const matchesSearch = !searchQuery ||
+        (u.display_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (u.email || "").toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesRole = roleFilter === "all" || u.role === roleFilter;
+      return matchesSearch && matchesRole;
+    });
+  }, [users, searchQuery, roleFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Reset page when filters change
+  const handleSearch = (val: string) => { setSearchQuery(val); setCurrentPage(1); };
+  const handleRoleFilter = (val: string) => { setRoleFilter(val); setCurrentPage(1); };
+
+  // ─── Role counts ───
+  const roleCounts = useMemo(() => {
+    if (!users) return { all: 0, admin: 0, judge: 0, speaker: 0, attendee: 0 };
+    return {
+      all: users.length,
+      admin: users.filter(u => u.role === "admin").length,
+      judge: users.filter(u => u.role === "judge").length,
+      speaker: users.filter(u => u.role === "speaker").length,
+      attendee: users.filter(u => u.role === "attendee").length,
+    };
+  }, [users]);
 
   const updateRoleMut = useMutation({
     mutationFn: ({ id, role }: { id: number; role: UserRole }) =>
@@ -56,22 +94,18 @@ const Users = () => {
       toast.success("User role updated successfully.");
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },
-    onError: () => {
-      toast.error("Failed to update role.");
-    },
+    onError: () => toast.error("Failed to update role."),
   });
 
   const resetPassMut = useMutation({
     mutationFn: (data: { user_id: number; new_password: string }) =>
       adminService.adminResetPassword(data),
     onSuccess: () => {
-      toast.success("Password reset successfully. The user will be required to change it on next login.");
+      toast.success("Password reset successfully.");
       setResetUserId(null);
       setNewPassword("");
     },
-    onError: () => {
-      toast.error("Failed to reset password. Ensure it has at least 6 characters.");
-    },
+    onError: () => toast.error("Failed to reset password."),
   });
 
   const deleteUserMut = useMutation({
@@ -80,12 +114,9 @@ const Users = () => {
       toast.success("User deleted successfully.");
       setDeleteUserId(null);
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
-      // Also invalidate dashboard stats since user count changed
       queryClient.invalidateQueries({ queryKey: ["admin", "dashboardStats"] });
     },
-    onError: () => {
-      toast.error("Failed to delete user.");
-    },
+    onError: () => toast.error("Failed to delete user."),
   });
 
   const handleResetSubmit = (e: React.FormEvent) => {
@@ -110,6 +141,35 @@ const Users = () => {
         </Button>
       </div>
 
+      {/* Search + Role Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, username, or email..."
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="pl-9 h-10"
+          />
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {(["all", "admin", "judge", "speaker", "attendee"] as const).map(r => (
+            <Button
+              key={r}
+              variant={roleFilter === r ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleRoleFilter(r)}
+              className="h-10 text-xs px-3 gap-1.5"
+            >
+              {r === "all" ? "All" : r.charAt(0).toUpperCase() + r.slice(1)}
+              <Badge variant="secondary" className="ml-0.5 h-5 px-1.5 text-[10px] font-mono rounded-full">
+                {roleCounts[r as keyof typeof roleCounts]}
+              </Badge>
+            </Button>
+          ))}
+        </div>
+      </div>
+
       <Card className="border-none shadow-sm">
         <CardContent className="p-0">
           <Table>
@@ -128,8 +188,14 @@ const Users = () => {
                     Loading users...
                   </TableCell>
                 </TableRow>
+              ) : paginatedUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-32 text-center text-slate-500">
+                    {searchQuery || roleFilter !== "all" ? "No users match your filter." : "No users found."}
+                  </TableCell>
+                </TableRow>
               ) : (
-                users?.map((user) => (
+                paginatedUsers.map((user) => (
                   <TableRow key={user.id} className="group">
                     <TableCell className="pl-6">
                       <div className="flex items-center gap-3">
@@ -208,6 +274,52 @@ const Users = () => {
               )}
             </TableBody>
           </Table>
+
+          {/* Pagination */}
+          {filteredUsers.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between px-6 py-3 border-t bg-slate-50/50">
+              <p className="text-xs text-muted-foreground">
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredUsers.length)} of {filteredUsers.length} users
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                  .map((page, idx, arr) => (
+                    <span key={page}>
+                      {idx > 0 && arr[idx - 1] !== page - 1 && (
+                        <span className="px-1 text-xs text-muted-foreground">…</span>
+                      )}
+                      <Button
+                        variant={page === currentPage ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 w-8 p-0 text-xs"
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Button>
+                    </span>
+                  ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

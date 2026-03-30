@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as XLSX from "xlsx";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { eventsService } from "@/services/events";
@@ -6,6 +7,10 @@ import { adminService } from "@/services/admin";
 import { teamsService } from "@/services/teams";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +26,8 @@ import {
   ArrowLeft, Calendar, MapPin, Users, Trophy, MessageSquare,
   Loader2, QrCode, Link2, Plus, Trash2, BarChart3, UserCheck,
   UserPlus, Edit, Download, Clock, UserCircle, UsersRound,
-  Check, X, Pencil, Search, Ban, LogIn, MoreHorizontal,
+  Check, X, Pencil, Search, Ban, LogIn, MoreHorizontal, Eye,
+  Menu,
   Award, Settings2, RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -148,7 +154,7 @@ const EventDetail = () => {
     onError: () => toast.error("Failed to join team."),
   });
   const createJudgeMutation = useMutation({
-    mutationFn: () => adminService.createUser({ ...newJudge, role: "judge", password: "blueox2026" }),
+    mutationFn: () => adminService.createUser({ ...newJudge, role: "judge", password: brand.defaultPassword }),
     onSuccess: (data: { id: number }) => {
       adminService.assignJudge(eventId, data.id).then(() => {
         toast.success("Judge created & assigned!");
@@ -206,10 +212,70 @@ const EventDetail = () => {
     (u: { id: number }) => !(assignedJudges || []).some((a: { judge: number }) => a.judge === u.id)
   );
 
-  const handleExport = (type: string) => {
-    const token = localStorage.getItem("auth_token");
-    const url = adminService.getExportUrl(eventId, type);
-    window.open(`${url}&token=${token}`, "_blank");
+  const exportToExcel = (type: string) => {
+    let data: Record<string, unknown>[] = [];
+    const filename = `${event.title.replace(/[^a-zA-Z0-9]/g, "_")}_${type}`;
+
+    if (type === "attendees") {
+      data = (attendees || []).map((a: { name: string; username?: string; email?: string; profession?: string; status: string; registered_at: string }) => ({
+        Name: a.name,
+        Username: a.username || "",
+        Email: a.email || "",
+        Profession: a.profession || "",
+        Status: a.status === "checked_in" ? "Checked In" : a.status === "cancelled" ? "Cancelled" : "Registered",
+        "Registered At": a.registered_at ? format(new Date(a.registered_at), "MMM d, yyyy h:mm a") : "",
+      }));
+    } else if (type === "submissions") {
+      data = (submissions || []).map((s: Submission) => ({
+        Title: s.title,
+        "Submitted By": s.submitted_by_name,
+        Team: s.team_name || "—",
+        Description: s.description,
+        "Repo URL": s.repo_url,
+        "Demo URL": s.demo_url,
+        "Submitted At": s.submitted_at ? format(new Date(s.submitted_at), "MMM d, yyyy h:mm a") : "",
+      }));
+    } else if (type === "scores") {
+      // Flatten submissions with their scores
+      (submissions || []).forEach((s: Submission) => {
+        if (s.scores && s.scores.length > 0) {
+          s.scores.forEach((sc: Score) => {
+            data.push({
+              Submission: s.title,
+              "Submitted By": s.submitted_by_name,
+              Criteria: sc.criteria_name,
+              "Max Score": sc.max_score,
+              Score: sc.score,
+              Judge: sc.judge_name,
+              Comment: sc.comment,
+              "Scored At": sc.scored_at ? format(new Date(sc.scored_at), "MMM d, yyyy h:mm a") : "",
+            });
+          });
+        } else {
+          data.push({
+            Submission: s.title,
+            "Submitted By": s.submitted_by_name,
+            Criteria: "—",
+            "Max Score": "—",
+            Score: "No scores yet",
+            Judge: "—",
+            Comment: "",
+            "Scored At": "",
+          });
+        }
+      });
+    }
+
+    if (data.length === 0) {
+      toast.error(`No ${type} data to export.`);
+      return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, type.charAt(0).toUpperCase() + type.slice(1));
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+    toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} exported!`);
   };
 
   // ─── Filter attendees ───
@@ -253,13 +319,59 @@ const EventDetail = () => {
         <div className="absolute top-1/2 right-1/4 w-20 h-20 bg-white/5 rounded-full" />
 
         <div className="relative z-10">
-          <div className="flex flex-col md:flex-row items-start justify-between gap-6">
-            <div className="flex items-start gap-3 flex-1 min-w-0">
-              <Button variant="ghost" size="icon" onClick={() => navigate("/events")} className="text-white/70 hover:text-white hover:bg-white/10 -ml-2 mt-0.5 shrink-0">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap gap-2 mb-2">
+          {/* Actions menu — top right */}
+          <div className="flex justify-end mb-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-white/70 hover:text-white hover:bg-white/10">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  {(event.is_competition || event.event_type === "competition" || event.event_type === "hackathon") && (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate(`/events/${eventId}/wall-of-fame`)} className="cursor-pointer">
+                        <Trophy className="h-4 w-4 mr-2 text-yellow-500" />Wall of Fame
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate(`/events/${eventId}/leaderboard`)} className="cursor-pointer">
+                        <BarChart3 className="h-4 w-4 mr-2 text-blue-500" />Leaderboard
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate(`/events/${eventId}/edit`)} className="cursor-pointer">
+                        <Edit className="h-4 w-4 mr-2" />Edit Event
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate(`/events/${eventId}/certificate`)} className="cursor-pointer">
+                        <Eye className="h-4 w-4 mr-2 text-indigo-500" />Preview Certificate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => event.certificates_released
+                          ? adminService.unreleaseCertificates(eventId).then(() => queryClient.invalidateQueries({ queryKey: ["event", eventId] }))
+                          : adminService.releaseCertificates(eventId).then(() => queryClient.invalidateQueries({ queryKey: ["event", eventId] }))}
+                        className="cursor-pointer"
+                      >
+                        <Award className="h-4 w-4 mr-2 text-green-500" />
+                        {event.certificates_released ? "Unrelease Certificates" : "Release Certificates"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => { if (confirm("Delete this event?")) deleteEventMutation.mutate(); }}
+                        className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />Delete Event
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+          </div>
+
+          {/* Event details — full width */}
+          <div>
+                <div className="flex flex-wrap gap-2 -mt-8 mb-3">
                   <Badge className="bg-white/20 text-white border-0 backdrop-blur-sm text-xs">{event.event_type}</Badge>
                   {event.is_competition && <Badge className="bg-yellow-400/20 text-yellow-100 border-0 text-xs">🏆 Competition</Badge>}
                   {event.allow_teams && <Badge className="bg-blue-400/20 text-blue-100 border-0 text-xs">👥 Teams</Badge>}
@@ -267,8 +379,16 @@ const EventDetail = () => {
                     {event.is_active ? "● Active" : "● Inactive"}
                   </Badge>
                 </div>
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight break-words">{event.title}</h1>
-                <div className="flex flex-wrap gap-4 mt-3 text-sm text-white/80">
+                <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="icon" onClick={() => navigate("/events")} className="text-white/70 hover:text-white hover:bg-white/10 -ml-2 shrink-0">
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+                  <h1 className="text-3xl md:text-4xl font-bold tracking-tight break-words">{event.title}</h1>
+                </div>
+                {event.description && (
+                  <p className="mt-3 text-sm text-white/70 line-clamp-2 max-w-2xl">{event.description}</p>
+                )}
+                <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4 text-sm text-white/80">
                   {event.location && (
                     <span className="flex items-center gap-1.5">
                       <MapPin className="h-4 w-4 shrink-0" />{event.location}
@@ -285,39 +405,6 @@ const EventDetail = () => {
                     <Users className="h-4 w-4 shrink-0" />{event.attendee_count}{event.max_attendees ? ` / ${event.max_attendees}` : ""} attendees
                   </span>
                 </div>
-              </div>
-            </div>
-            {/* Actions */}
-            <div className="flex flex-wrap gap-2 shrink-0 w-full md:w-auto">
-              {(event.is_competition || event.event_type === "competition" || event.event_type === "hackathon") && (
-                <Button size="sm" onClick={() => navigate(`/events/${eventId}/wall-of-fame`)} className="bg-yellow-400 text-slate-900 hover:bg-yellow-500 border-0">
-                  <Trophy className="h-4 w-4 mr-1.5" />Wall of Fame
-                </Button>
-              )}
-              {(event.is_competition || event.event_type === "competition" || event.event_type === "hackathon") && (
-                <Button size="sm" onClick={() => navigate(`/events/${eventId}/leaderboard`)} className="bg-white/15 hover:bg-white/25 border-0 backdrop-blur-sm">
-                  <BarChart3 className="h-4 w-4 mr-1.5" />Leaderboard
-                </Button>
-              )}
-              {isAdmin && (
-                <>
-                  <Button size="sm" onClick={() => navigate(`/events/${eventId}/edit`)} className="bg-white/15 hover:bg-white/25 border-0 backdrop-blur-sm">
-                    <Edit className="h-4 w-4 mr-1" />Edit
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    onClick={() => event.certificates_released ? adminService.unreleaseCertificates(eventId).then(() => queryClient.invalidateQueries({ queryKey: ["event", eventId] })) : adminService.releaseCertificates(eventId).then(() => queryClient.invalidateQueries({ queryKey: ["event", eventId] }))} 
-                    className={`${event.certificates_released ? "bg-green-500/40" : "bg-white/15"} hover:bg-white/25 border-0 backdrop-blur-sm`}
-                  >
-                    <Trophy className="h-4 w-4 mr-1" />
-                    {event.certificates_released ? "Certificates Released" : "Release Certificates"}
-                  </Button>
-                  <Button size="sm" onClick={() => { if (confirm("Delete this event?")) deleteEventMutation.mutate(); }} className="bg-red-500/30 hover:bg-red-500/50 border-0 backdrop-blur-sm">
-                    <Trash2 className="h-4 w-4 mr-1" />Delete
-                  </Button>
-                </>
-              )}
-            </div>
           </div>
 
           {/* Register button inside hero */}
@@ -980,14 +1067,25 @@ const EventDetail = () => {
 
             {/* Export */}
             <Card className="border-border/40">
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Export Data</CardTitle></CardHeader>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Export Data (Excel)</CardTitle>
+                <p className="text-[10px] text-muted-foreground">Download .xlsx files generated from the loaded data.</p>
+              </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {["attendees", "submissions", "scores", "teams"].map(type => (
-                    <Button key={type} variant="outline" size="sm" onClick={() => handleExport(type)}>
-                      <Download className="h-4 w-4 mr-1" />{type.charAt(0).toUpperCase() + type.slice(1)}
-                    </Button>
-                  ))}
+                  <Button variant="outline" size="sm" onClick={() => exportToExcel("attendees")}>
+                    <Download className="h-4 w-4 mr-1" />Attendees
+                  </Button>
+                  {(event.is_competition || event.event_type === "competition" || event.event_type === "hackathon") && (
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => exportToExcel("submissions")}>
+                        <Download className="h-4 w-4 mr-1" />Submissions
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => exportToExcel("scores")}>
+                        <Download className="h-4 w-4 mr-1" />Scores
+                      </Button>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>

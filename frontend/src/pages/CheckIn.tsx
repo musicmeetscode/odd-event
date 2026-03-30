@@ -15,6 +15,19 @@ import { format } from "date-fns";
 import html2canvas from "html2canvas-pro";
 import { GoogleLogin } from "@react-oauth/google";
 import type { Event } from "@/types/api";
+import { brand } from "@/config/brandConfig";
+
+const PLATFORMS = {
+  SQUARE: { name: "Instagram / Square", width: 500, height: 500 },
+  LANDSCAPE: { name: "X / LinkedIn / FB", width: 600, height: 315 },
+  STORY: { name: "WhatsApp / IG Story", width: 360, height: 640 },
+};
+
+const ATTENDANCE_STATUS = [
+  "I'm Attending",
+  "I Attended",
+  "I'm Speaking"
+];
 
 const CheckIn = () => {
   const { loginWithGoogle } = useAuth();
@@ -22,6 +35,9 @@ const CheckIn = () => {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<any>(null);
+  
+  const [activePlatform, setActivePlatform] = useState<keyof typeof PLATFORMS>("SQUARE");
+  const [activeStatus, setActiveStatus] = useState<string>(ATTENDANCE_STATUS[0]);
 
   const dpRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,7 +64,6 @@ const CheckIn = () => {
       const data = await loginWithGoogle(credentialResponse.credential, selectedEvent.id);
       if (data.check_in_result) {
         setResult(data.check_in_result);
-        // Use Google avatar if user didn't upload one
         if (data.avatar_url && !profileImage) {
           setProfileImage(data.avatar_url);
         }
@@ -74,7 +89,7 @@ const CheckIn = () => {
       const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${(result?.display_name || "blueox").replace(/\s+/g, "_")}-dp.png`;
+      link.download = `${(result?.display_name || brand.name.toLowerCase().replace(/\s+/g, "")).replace(/\s+/g, "_")}-${activePlatform.toLowerCase()}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -87,93 +102,174 @@ const CheckIn = () => {
   };
 
   if (result) {
-    const eventTitle = result.event_title || selectedEvent?.title || "Blue Ox Events";
+    const eventTitle = result.event_title || selectedEvent?.title || brand.fullName;
     const displayName = result.display_name || "Attendee";
     const profession = result.profession || "";
+    
+    const dim = PLATFORMS[activePlatform];
 
     return (
-      <div className="p-4 w-full h-full pt-20">
-        <div className="max-w-2xl mx-auto py-8">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 mb-4">
-              <CheckCircle2 className="h-8 w-8 text-green-500" />
+      <div className="p-4 w-full h-full pt-16">
+        <div className="max-w-4xl mx-auto py-4">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-500/10 mb-3">
+              <CheckCircle2 className="h-6 w-6 text-green-500" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">You're Checked In! 🎉</h2>
-            <p className="text-muted-foreground">
+            <h2 className="text-2xl font-bold mb-1">You're Checked In! 🎉</h2>
+            <p className="text-muted-foreground text-sm">
               Welcome to <span className="font-semibold text-foreground">{eventTitle}</span>
             </p>
           </div>
 
           <Card className="mb-6 border-border/50 shadow-lg overflow-hidden">
-            <CardHeader className="pb-2 bg-slate-50/50">
-              <CardTitle className="text-lg">Your Event DP</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Generate your personalized social media badge for the event.
-              </p>
+            <CardHeader className="pb-3 bg-slate-50 border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <CardTitle className="text-lg">Your Social Badge</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Customize your badge format before downloading.
+                  </p>
+                </div>
+                
+                <div className="flex bg-white rounded-lg p-1 border border-slate-200">
+                  {ATTENDANCE_STATUS.map(status => (
+                    <button
+                      key={status}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${activeStatus === status ? "bg-primary text-white" : "text-slate-500 hover:bg-slate-50"}`}
+                      onClick={() => setActiveStatus(status)}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-200 border-dashed">
+                {Object.entries(PLATFORMS).map(([key, val]) => (
+                  <Button
+                    key={key}
+                    variant={activePlatform === key as keyof typeof PLATFORMS ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1 min-w-[120px]"
+                    onClick={() => setActivePlatform(key as keyof typeof PLATFORMS)}
+                  >
+                    {val.name}
+                  </Button>
+                ))}
+              </div>
             </CardHeader>
-            <CardContent className="pt-6">
-              <div className="flex flex-wrap gap-3 mb-6">
+            <CardContent className="pt-6 relative bg-slate-100/50">
+              <div className="flex flex-wrap gap-3 mb-6 max-w-sm mx-auto">
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                <Button variant="outline" className="flex-1" onClick={() => fileInputRef.current?.click()}>
+                <Button variant="outline" className="flex-1 bg-white" onClick={() => fileInputRef.current?.click()}>
                   <ImageIcon className="h-4 w-4 mr-2" />
-                  {profileImage ? "Change Photo" : "Upload Photo"}
+                  {profileImage ? "Change" : "Upload Photo"}
                 </Button>
-                <Button className="flex-1 bg-primary text-white" onClick={handleDownloadDP} disabled={!profileImage || isGenerating}>
+                <Button className="flex-1 bg-primary text-white shadow-md shadow-primary/20" onClick={handleDownloadDP} disabled={!profileImage || isGenerating}>
                   <Download className="h-4 w-4 mr-2" />
-                  {isGenerating ? "Processing..." : "Download DP"}
+                  {isGenerating ? "Processing..." : "Download"}
                 </Button>
               </div>
 
-              <div className="flex justify-center bg-slate-100 rounded-xl p-8 border-2 border-dashed border-slate-200">
+              <div className="flex justify-center bg-slate-100/80 rounded-2xl p-4 sm:p-8 border-2 border-dashed border-slate-200 overflow-x-auto">
                 <div
                   ref={dpRef}
+                  className="bg-white shadow-xl transition-all duration-300 relative overflow-hidden flex flex-col items-center shrink-0"
                   style={{
-                    width: 500,
-                    height: 500,
-                    position: "relative",
-                    overflow: "hidden",
+                    width: dim.width,
+                    height: dim.height,
                     fontFamily: "'Inter', sans-serif",
-                    background: "#ffffff",
-                    borderRadius: 24,
+                    borderRadius: activePlatform === 'STORY' ? 24 : 0, 
                   }}
                 >
-                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 8, background: "linear-gradient(90deg, #1a365d, #F58220)" }} />
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "32px 32px 0" }}>
-                    <img src="/logo.png" alt="Blue Ox" style={{ width: 44, height: 44 }} crossOrigin="anonymous" />
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                        <span style={{ color: "#1a365d", fontWeight: 800, fontSize: 18, leadingHeight: 1 }}>BLUE OX</span>
-                        <span style={{ color: "#F58220", fontWeight: 600, fontSize: 12, trackingSpacing: '0.2em' }}>KAMPUS</span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
-                    <div style={{ background: "rgba(245, 130, 32, 0.1)", border: "1px solid rgba(245, 130, 32, 0.2)", borderRadius: 20, padding: "6px 20px", color: "#F58220", fontSize: 13, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>
-                      ✓ I'm Attending
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: "center", padding: "16px 32px 0" }}>
-                    <div style={{ fontSize: 26, fontWeight: 900, color: "#1a365d", lineHeight: 1.1 }}>{eventTitle}</div>
-                  </div>
-
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 32px 0" }}>
-                    <div style={{ width: 200, height: 200, borderRadius: "50%", overflow: "hidden", border: "6px solid #ffffff", boxShadow: "0 20px 40px -10px rgba(0,0,0,0.2)", background: "#f8fafc" }}>
-                      {profileImage ? (
-                        <img src={profileImage} alt={displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      ) : (
-                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyCenter: "center", fontSize: 80, fontWeight: 800, color: "#1a365d", background: "rgba(26, 54, 93, 0.05)" }}>
-                          {displayName[0]}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ marginTop: 20, fontSize: 32, fontWeight: 900, color: "#1a365d", textAlign: "center", letterSpacing: "-0.01em" }}>{displayName}</div>
-                    <div style={{ fontSize: 16, color: "#64748b", fontWeight: 600, marginTop: 4 }}>{profession}</div>
-                  </div>
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 8, background: `linear-gradient(90deg, ${brand.colors.primary}, ${brand.colors.accent})` }} />
                   
-                  <div style={{ position: "absolute", bottom: 24, left: 32, right: 32, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", trackingSpacing: '0.1em' }}>#BLUEOXKAMPUS2026</div>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8" }}>CODE · CONNECT · GROW</div>
-                  </div>
+                  {activePlatform === "LANDSCAPE" ? (
+                    // LANDSCAPE LAYOUT
+                    <div style={{ display: "flex", width: "100%", height: "100%" }}>
+                      <div style={{ flex: "0 0 45%", padding: "40px", display: "flex", flexDirection: "column", justifyContent: "space-between", background: `${brand.colors.primary}08` }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <img src={brand.logo} alt={brand.name} style={{ width: 44, height: 44 }} crossOrigin="anonymous" />
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                              <span style={{ color: brand.colors.primary, fontWeight: 800, fontSize: 18, lineHeight: 1 }}>{brand.name.toUpperCase()}</span>
+                              <span style={{ color: brand.colors.accent, fontWeight: 600, fontSize: 12, letterSpacing: '0.2em' }}>{brand.tagline.toUpperCase()}</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div style={{ background: `${brand.colors.accent}1A`, border: `1px solid ${brand.colors.accent}33`, borderRadius: 16, padding: "4px 12px", color: brand.colors.accent, fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", display: "inline-block", marginBottom: 12 }}>
+                            ✓ {activeStatus}
+                          </div>
+                          <div style={{ fontSize: 24, fontWeight: 900, color: brand.colors.primary, lineHeight: 1.1 }}>{eventTitle}</div>
+                        </div>
+
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: '0.1em', marginBottom: 2 }}>{brand.hashtag}</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8" }}>CODE · CONNECT · GROW</div>
+                        </div>
+                      </div>
+
+                      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px" }}>
+                        <div style={{ width: 140, height: 140, borderRadius: "50%", overflow: "hidden", border: "4px solid #ffffff", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.15)", background: "#f8fafc", flexShrink: 0 }}>
+                          {profileImage ? (
+                            <img src={profileImage} alt={displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          ) : (
+                            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 56, fontWeight: 800, color: brand.colors.primary, background: `${brand.colors.primary}0D` }}>
+                              {displayName[0]}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ marginTop: 16, fontSize: 24, fontWeight: 900, color: brand.colors.primary, textAlign: "center", letterSpacing: "-0.01em" }}>{displayName}</div>
+                        <div style={{ fontSize: 13, color: "#64748b", fontWeight: 600, marginTop: 2, textAlign: "center" }}>{profession}</div>
+                      </div>
+                    </div>
+                  ) : (
+                    // SQUARE & STORY LAYOUT
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between", height: "100%", width: "100%", padding: activePlatform === "STORY" ? "60px 40px" : "40px 40px 32px" }}>
+                      
+                      {/* Brand Header */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <img src={brand.logo} alt={brand.name} style={{ width: activePlatform === "STORY" ? 56 : 44, height: activePlatform === "STORY" ? 56 : 44 }} crossOrigin="anonymous" />
+                        <div style={{ display: "flex", flexDirection: "column" }}>
+                            <span style={{ color: brand.colors.primary, fontWeight: 800, fontSize: activePlatform === "STORY" ? 22 : 18, lineHeight: 1 }}>{brand.name.toUpperCase()}</span>
+                            <span style={{ color: brand.colors.accent, fontWeight: 600, fontSize: activePlatform === "STORY" ? 14 : 12, letterSpacing: '0.2em', marginTop: 2 }}>{brand.tagline.toUpperCase()}</span>
+                        </div>
+                      </div>
+
+                      {/* Attend Status */}
+                      <div style={{ display: "flex", justifyContent: "center", marginTop: activePlatform === "STORY" ? 24 : 16 }}>
+                        <div style={{ background: `${brand.colors.accent}1A`, border: `1px solid ${brand.colors.accent}33`, borderRadius: 20, padding: "6px 20px", color: brand.colors.accent, fontSize: activePlatform === "STORY" ? 14 : 13, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>
+                          ✓ {activeStatus}
+                        </div>
+                      </div>
+
+                      {/* Event Title */}
+                      <div style={{ textAlign: "center", padding: activePlatform === "STORY" ? "24px 0" : "16px 0", flexGrow: 1, display: "flex", alignItems: "center" }}>
+                        <div style={{ fontSize: activePlatform === "STORY" ? 32 : 28, fontWeight: 900, color: brand.colors.primary, lineHeight: 1.1 }}>{eventTitle}</div>
+                      </div>
+
+                      {/* Avatar */}
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <div style={{ width: activePlatform === "STORY" ? 220 : 180, height: activePlatform === "STORY" ? 220 : 180, borderRadius: "50%", overflow: "hidden", border: "5px solid #ffffff", boxShadow: "0 20px 40px -10px rgba(0,0,0,0.15)", background: "#f8fafc" }}>
+                          {profileImage ? (
+                            <img src={profileImage} alt={displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          ) : (
+                            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: activePlatform === "STORY" ? 90 : 72, fontWeight: 800, color: brand.colors.primary, background: `${brand.colors.primary}0D` }}>
+                              {displayName[0]}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ marginTop: activePlatform === "STORY" ? 24 : 16, fontSize: activePlatform === "STORY" ? 34 : 28, fontWeight: 900, color: brand.colors.primary, textAlign: "center", letterSpacing: "-0.01em" }}>{displayName}</div>
+                        <div style={{ fontSize: activePlatform === "STORY" ? 18 : 14, color: "#64748b", fontWeight: 600, marginTop: 4, textAlign: "center" }}>{profession}</div>
+                      </div>
+                      
+                      {/* Footer */}
+                      <div style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: activePlatform === "STORY" ? 40 : 24 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: '0.1em' }}>{brand.hashtag}</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8" }}>CODE · CONNECT · GROW</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -194,7 +290,7 @@ const CheckIn = () => {
             <Button variant="ghost" size="sm" className="absolute left-4 top-4" onClick={() => setSelectedEvent(null)}>
               <ArrowLeft className="h-4 w-4 mr-1" /> Back
             </Button>
-            <img src="/logo.png" alt="Blue Ox Events" className="w-16 h-16 mx-auto mb-4" />
+            <img src={brand.logo} alt={brand.fullName} className="w-16 h-16 mx-auto mb-4" />
             <CardTitle className="text-2xl font-bold">Check In</CardTitle>
             <p className="text-muted-foreground mt-2">Almost there! Sign in to verify your attendance at:</p>
             <Badge variant="secondary" className="mx-auto mt-3 py-1.5 px-4 text-sm font-semibold">{selectedEvent.title}</Badge>
@@ -233,7 +329,7 @@ const CheckIn = () => {
     <div className="p-4 w-full h-full pt-20">
       <div className="max-w-4xl mx-auto py-8">
         <div className="text-center mb-12">
-          <img src="/logo.png" alt="Blue Ox Events" className="w-20 h-20 mx-auto mb-4" />
+          <img src={brand.logo} alt={brand.fullName} className="w-20 h-20 mx-auto mb-4" />
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-2">Event Check-In</h1>
           <p className="text-lg text-muted-foreground">Welcome! Please select an event to check in and generate your attendee badge.</p>
         </div>

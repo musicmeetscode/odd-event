@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Loader2, Award, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas-pro";
+import { brand } from "@/config/brandConfig";
 
 const Certificate = () => {
     const { id } = useParams<{ id: string }>();
@@ -146,12 +147,12 @@ const Certificate = () => {
                             <div className="flex items-center gap-4 mb-4">
                                 <img src="/logo.png" alt="Logo" className="w-16 h-16 object-contain" crossOrigin="anonymous" />
                                 <div className="text-left">
-                                    <div className="text-xl font-bold text-[#1a365d] tracking-widest leading-none">BLUE OX</div>
-                                    <div className="text-sm font-medium text-[#F58220] tracking-[0.3em]">KAMPUS</div>
+                                    <div className="text-xl font-bold tracking-widest leading-none" style={{ color: brand.colors.primary }}>{brand.name.toUpperCase()}</div>
+                                    <div className="text-sm font-medium tracking-[0.3em]" style={{ color: brand.colors.accent }}>{brand.tagline.toUpperCase()}</div>
                                 </div>
                             </div>
                             {/* <div className="text-[12px] uppercase tracking-[0.4em] text-slate-400 mb-1 font-semibold">Presents</div>
-                            <div className="text-lg font-bold text-[#F58220] uppercase tracking-wide tracking-widest">
+                            <div className="text-lg font-bold text-[#F58220] uppercase tracking-widest">
                                 {event?.title}
                             </div>
                             <div className="text-sm text-slate-400 font-medium mt-1">
@@ -162,11 +163,11 @@ const Certificate = () => {
                         {/* Title Section */}
                         <div className="mb-8 mt-2">
                             <div className="text-[14px] uppercase tracking-[0.5em] text-slate-400 mb-2 font-bold leading-none">Certificate of</div>
-                            <div className="text-6xl font-bold text-[#1a365d] italic" style={{ fontFamily: "'EB Garamond', serif" }}>
+                            <div className="text-6xl font-bold italic" style={{ fontFamily: "'EB Garamond', serif", color: brand.colors.primary }}>
                                 {cert.certificate_type.split(' - ')[0] || "Excellence"}
                             </div>
                             {cert.rank && (
-                                <div className="text-[#F58220] font-bold text-sm tracking-[0.3em] uppercase mt-2">
+                                <div className="font-bold text-sm tracking-[0.3em] uppercase mt-2" style={{ color: brand.colors.accent }}>
                                     {cert.certificate_type.includes('Winner') ? 'THE WINNER' : cert.certificate_type.split(' - ')[1]?.toUpperCase()}
                                 </div>
                             )}
@@ -184,7 +185,7 @@ const Certificate = () => {
                             <div className="max-w-2xl mx-auto text-slate-500 leading-relaxed text-[15px]">
                                 {cert.rank ? (
                                     <>In recognition of outstanding achievement in the <span className="text-[#F58220] font-bold">{event?.title}</span>, 
-                                    demonstrating exceptional skill and creativity with the submission <span className="font-bold text-[#1a365d] italic italic">"{cert.submission?.title}"</span>.</>
+                                    demonstrating exceptional skill and creativity with the submission <span className="font-bold text-[#1a365d] italic">"{cert.submission?.title}"</span>.</>
                                 ) : (
                                     <>In recognition of active participation and commitment to excellence during the <span className="text-[#F58220] font-bold">{event?.title}</span>. 
                                     This achievement reflects a dedication to growth, innovation, and the mission to Code · Connect · Learn · Grow.</>
@@ -202,12 +203,12 @@ const Certificate = () => {
                             </div>
                             <div className="text-center">
                                 <div className="text-[11px] uppercase tracking-[0.3em] text-slate-400 mb-1 font-bold">Venue</div>
-                                <div className="text-[14px] font-bold text-[#1a1a2e]">{event?.location || 'Blue Ox Kampus'}</div>
+                                <div className="text-[14px] font-bold text-[#1a1a2e]">{event?.location || brand.company}</div>
                             </div>
                             <div className="text-center">
                                 <div className="text-[11px] uppercase tracking-[0.3em] text-slate-400 mb-1 font-bold">Partners</div>
                                 <div className="text-[13px] font-bold text-[#1a1a2e]">
-                                    {partnersList.length > 0 ? partnersList.map((p: any) => p.name).join(' · ') : 'Blue Ox Community'}
+                                    {partnersList.length > 0 ? partnersList.map((p: any) => p.name).join(' · ') : brand.company}
                                 </div>
                             </div>
                         </div>
@@ -234,11 +235,11 @@ const Certificate = () => {
                         </div>
 
                         {/* Seal */}
-                        <div className="absolute bottom-10 right-10 w-28 h-28 rounded-full border-4 border-[#F58220]/20 flex items-center justify-center p-1 bg-white/10 backdrop-blur-sm shadow-xl">
-                            <div className="w-full h-full rounded-full border border-dashed border-[#F58220]/40 flex flex-col items-center justify-center text-[#F58220]/80">
-                                <div className="text-[8px] font-black tracking-tighter leading-none mb-1 text-center">BLUE OX<br/>KAMPUS</div>
+                        <div className="absolute bottom-10 right-10 w-28 h-28 rounded-full border-4 flex items-center justify-center p-1 bg-white/10 backdrop-blur-sm shadow-xl" style={{ borderColor: `${brand.colors.accent}33` }}>
+                            <div className="w-full h-full rounded-full border border-dashed flex flex-col items-center justify-center" style={{ borderColor: `${brand.colors.accent}66`, color: brand.colors.accent }}>
+                                <div className="text-[8px] font-black tracking-tighter leading-none mb-1 text-center">{brand.name.toUpperCase()}<br/>{brand.tagline.toUpperCase()}</div>
                                 <Award className="w-8 h-8 opacity-40" />
-                                <div className="text-[8px] font-bold mt-1 tracking-widest">2026</div>
+                                <div className="text-[8px] font-bold mt-1 tracking-widest">{new Date().getFullYear()}</div>
                             </div>
                         </div>
                     </div>

@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, ShieldCheck, ScrollText, Camera, AlertTriangle, Cpu } from "lucide-react";
+import { brand } from "@/config/brandConfig";
 
 const Privacy = () => {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ const Privacy = () => {
             </CardHeader>
             <CardContent className="pt-6 prose prose-slate max-w-none">
               <p>
-                Welcome to Blue Ox Events. By using our platform and participating in our events, you agree to the following terms and conditions. Your privacy and safety are important to us, but certain aspects of event participation require your acknowledgment of the following:
+                Welcome to {brand.fullName}. By using our platform and participating in our events, you agree to the following terms and conditions. Your privacy and safety are important to us, but certain aspects of event participation require your acknowledgment of the following:
               </p>
               <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
                 <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-2">
@@ -53,7 +54,7 @@ const Privacy = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-slate-600 leading-relaxed">
-                By signing up and attending our events, you grant Blue Ox Events a perpetual, worldwide, royalty-free license to use, reproduce, and distribute any media (including photography and video recordings) taken during the event. This includes images where you may be identifiable.
+                By signing up and attending our events, you grant {brand.fullName} a perpetual, worldwide, royalty-free license to use, reproduce, and distribute any media (including photography and video recordings) taken during the event. This includes images where you may be identifiable.
               </CardContent>
             </Card>
             
@@ -79,7 +80,7 @@ const Privacy = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-slate-700 leading-relaxed">
-                Blue Ox Events and its organizers are not responsible for any harm, injury, loss, or damage to persons or property that may occur during, or as a result of, participation in our events. Attendees assume all risks associated with event attendance and participation.
+                {brand.fullName} and its organizers are not responsible for any harm, injury, loss, or damage to persons or property that may occur during, or as a result of, participation in our events. Attendees assume all risks associated with event attendance and participation.
               </CardContent>
             </Card>
 
@@ -114,8 +115,8 @@ const Privacy = () => {
             <CardContent className="p-8 text-center space-y-4">
               <h3 className="text-xl font-bold">Questions about our terms?</h3>
               <p className="text-slate-400 max-w-md mx-auto text-sm">
-                If you have any questions regarding these terms, please contact our legal team at legal@blueox.me. 
-                All rights reserved by Blue Ox Kamous.
+                If you have any questions regarding these terms, please contact our legal team at {brand.email}. 
+                All rights reserved by {brand.company}.
               </p>
               <Button variant="outline" className="border-slate-700 text-white hover:bg-slate-800" onClick={() => navigate("/login")}>
                 Return to Login

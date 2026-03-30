@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Trophy, ArrowLeft, Loader2, Award, Star, Info, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
+import { brand } from "@/config/brandConfig";
 
 const PublicSubmission = () => {
     const { id } = useParams<{ id: string }>();
@@ -43,8 +44,8 @@ const PublicSubmission = () => {
                 <div className="flex items-center gap-2 mb-8 no-print">
                     <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-4 w-4" /></Button>
                     <div className="flex items-center gap-2">
-                        <img src="/logo.png" alt="Blue Ox" className="w-8 h-8" />
-                        <span className="font-bold text-slate-900 tracking-tight">Blue Ox Verification</span>
+                        <img src={brand.logo} alt={brand.name} className="w-8 h-8" />
+                        <span className="font-bold text-slate-900 tracking-tight">{brand.name} Verification</span>
                     </div>
                 </div>
 
@@ -86,7 +87,7 @@ const PublicSubmission = () => {
                                         </div>
                                         <div>
                                             <div className="font-bold text-slate-900">{event_title}</div>
-                                            <div className="text-sm text-slate-500">Official Blue Ox Event</div>
+                                            <div className="text-sm text-slate-500">Official {brand.name} Event</div>
                                         </div>
                                     </div>
                                 </div>
@@ -143,7 +144,7 @@ const PublicSubmission = () => {
 
                     <div className="bg-slate-900 p-8 text-center text-white">
                         <div className="max-w-md mx-auto">
-                            <div className="text-sm font-bold mb-2">Authentic Blue Ox Achievement</div>
+                            <div className="text-sm font-bold mb-2">Authentic {brand.name} Achievement</div>
                             <p className="text-xs text-slate-400 leading-relaxed mb-6">
                                 This achievement is cryptographically tied to the user's verified identity and official judging results recorded during {event_title}.
                             </p>
@@ -156,7 +157,7 @@ const PublicSubmission = () => {
 
                 {/* Footer */}
                 <div className="text-center">
-                    <p className="text-sm text-slate-400">© 2026 Blue Ox Kampus · All rights reserved.</p>
+                    <p className="text-sm text-slate-400">© {new Date().getFullYear()} {brand.company} · All rights reserved.</p>
                 </div>
             </div>
         </div>

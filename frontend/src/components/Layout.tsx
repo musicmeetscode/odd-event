@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, ArrowLeft, Home } from "lucide-react";
+import { brand } from "@/config/brandConfig";
 
 const Layout = () => {
   const { isAuthenticated, role } = useAuth();
@@ -58,8 +59,8 @@ const Layout = () => {
         <header className="flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-40">
           <div className="flex items-center gap-4">
             <div className="md:hidden flex items-center gap-2 cursor-pointer" onClick={handleHomeClick}>
-              <img src="/logo.png" alt="Logo" className="w-8 h-8" />
-              <span className="font-bold text-lg text-slate-800">Blue Ox</span>
+              <img src={brand.logo} alt={brand.name} className="w-8 h-8" />
+              <span className="font-bold text-lg text-slate-800">{brand.name}</span>
             </div>
             
             <Button

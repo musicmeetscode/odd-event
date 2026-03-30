@@ -10,6 +10,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { brand } from "@/config/brandConfig";
 
 const Sidebar = ({ onClose }: { onClose?: () => void }) => {
   const { username, role, logout } = useAuth();
@@ -57,19 +58,25 @@ const Sidebar = ({ onClose }: { onClose?: () => void }) => {
           onClose?.();
         }}
       >
-        <img src="/logo.png" alt="Blue Ox" className="w-8 h-8" />
+        <img src={brand.logo} alt={brand.name} className="w-8 h-8" />
         <span className="font-bold text-xl tracking-wide text-slate-800">
-          Blue Ox <span className="text-[#F58220]">Events</span>
+          {brand.name} <span style={{ color: brand.colors.accent }}>{brand.tagline}</span>
         </span>
       </div>
 
       {/* User Info */}
       <div className="p-6 flex flex-col items-center border-b border-slate-100">
-        <div className="w-20 h-20 rounded-full bg-blue-50 text-blue-600 mb-4 flex items-center justify-center text-2xl font-bold border-2 border-[#2962FF]/20 shadow-sm">
+        <div
+          className="w-20 h-20 rounded-full mb-4 flex items-center justify-center text-2xl font-bold border-2 shadow-sm"
+          style={{ backgroundColor: `${brand.colors.primary}10`, color: brand.colors.primary, borderColor: `${brand.colors.primary}33` }}
+        >
           {username.charAt(0).toUpperCase()}
         </div>
         <h3 className="font-semibold text-lg text-slate-800">{username}</h3>
-        <span className="text-xs mt-1 uppercase tracking-wider font-semibold text-[#2962FF] bg-blue-50 px-3 py-1 rounded-full">
+        <span
+          className="text-xs mt-1 uppercase tracking-wider font-semibold px-3 py-1 rounded-full"
+          style={{ color: brand.colors.primary, backgroundColor: `${brand.colors.primary}10` }}
+        >
           {role}
         </span>
       </div>
@@ -87,15 +94,20 @@ const Sidebar = ({ onClose }: { onClose?: () => void }) => {
             className={cn(
               "w-full justify-start h-12 px-4 transition-colors",
               isActive(item.path)
-                ? "bg-gradient-to-r from-[#2962FF]/10 to-[#F58220]/10 text-slate-900 font-semibold border-l-4 border-[#F58220] hover:bg-gradient-to-r hover:from-[#2962FF]/10 hover:to-[#F58220]/10"
+                ? "text-slate-900 font-semibold border-l-4 hover:bg-opacity-80"
                 : "text-slate-500 hover:text-slate-900 hover:bg-slate-50 border-l-4 border-transparent"
             )}
+            style={isActive(item.path) ? {
+              background: `linear-gradient(to right, ${brand.colors.primary}1A, ${brand.colors.accent}1A)`,
+              borderLeftColor: brand.colors.accent,
+            } : undefined}
           >
             <item.icon
               className={cn(
                 "w-5 h-5 mr-3",
-                isActive(item.path) ? "text-[#2962FF]" : "text-slate-400"
+                isActive(item.path) ? "" : "text-slate-400"
               )}
+              style={isActive(item.path) ? { color: brand.colors.primary } : undefined}
             />
             {item.name}
           </Button>

@@ -549,7 +549,9 @@ class CertificateView(APIView):
         try: event = Event.objects.get(id=event_id)
         except Event.DoesNotExist: return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
         reg = EventRegistration.objects.filter(event=event, user=request.user).first()
-        if not reg: return Response({'error': 'You are not registered for this event.'}, status=status.HTTP_403_FORBIDDEN)
+        is_admin_preview = request.user.role == 'admin' and not reg
+        if not reg and not is_admin_preview:
+            return Response({'error': 'You are not registered for this event.'}, status=status.HTTP_403_FORBIDDEN)
         
         cert_type, rank = 'Attendance', None
         submission = Submission.objects.filter(event=event, submitted_by=request.user).first()

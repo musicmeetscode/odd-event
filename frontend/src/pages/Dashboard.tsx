@@ -6,6 +6,7 @@ import {
   PieChart, Pie, Cell, AreaChart, Area
 } from "recharts";
 import { Users, Calendar, FileText, Star, Loader2 } from "lucide-react";
+import { brand } from "@/config/brandConfig";
 
 // Colors for charts
 const COLORS = ["#f59e0b", "#1e293b", "#3b82f6", "#ef4444", "#10b981"];
@@ -68,7 +69,7 @@ const Dashboard = () => {
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-800">Blue Ox Events</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-800">{brand.fullName}</h1>
           <p className="text-slate-500 mt-1">Platform Analytics & Overview</p>
         </div>
       </div>

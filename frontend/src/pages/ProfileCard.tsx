@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Download, Loader2, Share2, Briefcase, MapPin, Calendar, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas-pro";
+import { brand } from "@/config/brandConfig";
 
 const ProfileCard = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -109,9 +110,9 @@ const ProfileCard = () => {
             <div className="h-40 bg-gradient-to-br from-blue-600 to-indigo-700 relative">
               <div className="absolute top-6 left-6 flex items-center gap-2">
                 <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-lg flex items-center justify-center border border-white/20">
-                  <img src="/logo.png" alt="Logo" className="w-5 h-5 invert" crossOrigin="anonymous" />
+                  <img src={brand.logo} alt={brand.name} className="w-5 h-5 invert" crossOrigin="anonymous" />
                 </div>
-                <span className="text-white text-xs font-bold tracking-widest uppercase opacity-80">Blue Ox Events</span>
+                <span className="text-white text-xs font-bold tracking-widest uppercase opacity-80">{brand.fullName}</span>
               </div>
             </div>
 
@@ -172,8 +173,8 @@ const ProfileCard = () => {
               <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                 Event Participant 2026
               </div>
-              <div className="text-[10px] text-blue-600 font-black">
-                BLUEOX.ME
+              <div className="text-[10px] text-blue-600 font-black uppercase">
+                {brand.website}
               </div>
             </div>
           </div>
