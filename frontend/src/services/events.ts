@@ -8,7 +8,7 @@ export const eventsService = {
     return response.data;
   },
 
-  getEvent: async (id: number) => {
+  getEvent: async (id: string | number) => {
     const response = await apiClient.get<Event>(`/events/${id}/`);
     return response.data;
   },
@@ -18,29 +18,29 @@ export const eventsService = {
     return response.data;
   },
 
-  updateEvent: async (id: number, data: Partial<Event>) => {
+  updateEvent: async (id: string | number, data: Partial<Event>) => {
     const response = await apiClient.put<Event>(`/events/${id}/`, data);
     return response.data;
   },
 
-  patchEvent: async (id: number, data: Partial<Event>) => {
+  patchEvent: async (id: string | number, data: Partial<Event>) => {
     const response = await apiClient.patch<Event>(`/events/${id}/`, data);
     return response.data;
   },
 
-  deleteEvent: async (id: number) => {
+  deleteEvent: async (id: string | number) => {
     await apiClient.delete(`/events/${id}/`);
   },
 
   // Registration
-  registerForEvent: async (eventId: number) => {
+  registerForEvent: async (eventId: string | number) => {
     const response = await apiClient.post<EventRegistration>(
       `/events/${eventId}/register/`
     );
     return response.data;
   },
 
-  unregisterFromEvent: async (eventId: number) => {
+  unregisterFromEvent: async (eventId: string | number) => {
     await apiClient.delete(`/events/${eventId}/register/`);
   },
 
@@ -50,14 +50,14 @@ export const eventsService = {
   },
 
   // Sessions (Q&A)
-  getEventSessions: async (eventId: number) => {
+  getEventSessions: async (eventId: string | number) => {
     const response = await apiClient.get<Session[]>(
       `/events/${eventId}/sessions/`
     );
     return response.data;
   },
 
-  createSession: async (eventId: number, data: Partial<Session>) => {
+  createSession: async (eventId: string | number, data: Partial<Session>) => {
     const response = await apiClient.post<Session>(
       `/events/${eventId}/sessions/`,
       data
@@ -65,7 +65,7 @@ export const eventsService = {
     return response.data;
   },
 
-  updateSession: async (eventId: number, sessionId: number, data: Partial<Session>) => {
+  updateSession: async (eventId: string | number, sessionId: number, data: Partial<Session>) => {
     const response = await apiClient.put<Session>(
       `/events/${eventId}/sessions/${sessionId}/`,
       data
@@ -73,7 +73,7 @@ export const eventsService = {
     return response.data;
   },
 
-  deleteSession: async (eventId: number, sessionId: number) => {
+  deleteSession: async (eventId: string | number, sessionId: number) => {
     await apiClient.delete(`/events/${eventId}/sessions/${sessionId}/`);
   },
 
@@ -115,14 +115,14 @@ export const eventsService = {
   },
 
   // Submissions
-  getSubmissions: async (eventId: number) => {
+  getSubmissions: async (eventId: string | number) => {
     const response = await apiClient.get<Submission[]>(
       `/events/${eventId}/submissions/`
     );
     return response.data;
   },
 
-  getSubmission: async (eventId: number, submissionId: number) => {
+  getSubmission: async (eventId: string | number, submissionId: number) => {
     const response = await apiClient.get<Submission>(
       `/events/${eventId}/submissions/${submissionId}/`
     );
@@ -130,7 +130,7 @@ export const eventsService = {
   },
 
   createSubmission: async (
-    eventId: number,
+    eventId: string | number,
     data: { title: string; description: string; repo_url?: string; demo_url?: string; team?: number }
   ) => {
     const response = await apiClient.post<Submission>(
@@ -141,17 +141,17 @@ export const eventsService = {
   },
 
   // Leaderboard
-  getLeaderboard: async (eventId: number): Promise<LeaderboardEntry[]> => {
+  getLeaderboard: async (eventId: string | number): Promise<LeaderboardEntry[]> => {
     const response = await apiClient.get<LeaderboardEntry[]>(`/events/${eventId}/leaderboard/`);
     return response.data;
   },
 
-  getWallOfFame: async (eventId: number): Promise<LeaderboardEntry[]> => {
+  getWallOfFame: async (eventId: string | number): Promise<LeaderboardEntry[]> => {
     const response = await apiClient.get<LeaderboardEntry[]>(`/events/${eventId}/wall-of-fame/`);
     return response.data;
   },
 
-  getProfileCard: async (eventId: number, userId?: number) => {
+  getProfileCard: async (eventId: string | number, userId?: string | number) => {
     const url = userId ? `/events/${eventId}/profile/${userId}/` : `/events/${eventId}/profile/`;
     const response = await apiClient.get(url);
     return response.data;

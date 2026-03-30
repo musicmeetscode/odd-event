@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { BrandProvider } from "@/contexts/BrandContext";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Layout from "@/components/Layout";
@@ -24,13 +25,14 @@ import Speakers from "./pages/Speakers";
 import Certificate from "./pages/Certificate";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
-import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 import WallOfFame from "./pages/WallOfFame";
 import ProfileCard from "./pages/ProfileCard";
 import Privacy from "./pages/Privacy";
 import PublicSubmission from "./pages/PublicSubmission";
 import AdminAssetManagement from "./pages/AdminAssetManagement";
 import NotFound from "./pages/NotFound";
+import ScrollToTop from "./components/ScrollToTop";
 
 const queryClient = new QueryClient();
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "503556441696-noc9guh0kb19hr11pqtlmeo0cl3efsbr.apps.googleusercontent.com";
@@ -39,10 +41,12 @@ const App = () => (
   <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
     <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+      <BrandProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+          <ScrollToTop />
           <Routes>
             {/* Public */}
             <Route element={<Layout />}>
@@ -71,7 +75,7 @@ const App = () => (
                 <Route path="/events/:id/certificate" element={<Certificate />} />
                 <Route path="/events/:id/sessions/:sid/questions" element={<QuestionBoard />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/profile" element={<Profile />} />
+                <Route path="/settings" element={<Settings />} />
                 
                 {/* Protected: judges only */}
                 <Route element={<ProtectedRoute requireRole="judge" />}>
@@ -91,6 +95,7 @@ const App = () => (
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+      </BrandProvider>
     </AuthProvider>
   </QueryClientProvider>
   </GoogleOAuthProvider>

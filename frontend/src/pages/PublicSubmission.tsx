@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Trophy, ArrowLeft, Loader2, Award, Star, Info, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
-import { brand } from "@/config/brandConfig";
+import { useBrand } from "@/contexts/BrandContext";
 
 const PublicSubmission = () => {
+    const { brand } = useBrand();
     const { id } = useParams<{ id: string }>();
     const submissionId = Number(id);
     const navigate = useNavigate();
@@ -157,7 +158,7 @@ const PublicSubmission = () => {
 
                 {/* Footer */}
                 <div className="text-center">
-                    <p className="text-sm text-slate-400">© {new Date().getFullYear()} {brand.company} · All rights reserved.</p>
+                    <p className="text-sm text-slate-400">© {new Date().getFullYear()} {brand.company_name} · All rights reserved.</p>
                 </div>
             </div>
         </div>

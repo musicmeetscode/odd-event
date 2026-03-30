@@ -43,8 +43,8 @@ const PAGE_SIZE = 20;
 
 const Users = () => {
   const queryClient = useQueryClient();
-  const [resetUserId, setResetUserId] = useState<number | null>(null);
-  const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
+  const [resetUserId, setResetUserId] = useState<string | number | null>(null);
+  const [deleteUserId, setDeleteUserId] = useState<string | number | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
@@ -88,7 +88,7 @@ const Users = () => {
   }, [users]);
 
   const updateRoleMut = useMutation({
-    mutationFn: ({ id, role }: { id: number; role: UserRole }) =>
+    mutationFn: ({ id, role }: { id: string | number; role: UserRole }) =>
       adminService.updateUserRole(id, role),
     onSuccess: () => {
       toast.success("User role updated successfully.");
@@ -98,7 +98,7 @@ const Users = () => {
   });
 
   const resetPassMut = useMutation({
-    mutationFn: (data: { user_id: number; new_password: string }) =>
+    mutationFn: (data: { user_id: string | number; new_password: string }) =>
       adminService.adminResetPassword(data),
     onSuccess: () => {
       toast.success("Password reset successfully.");
@@ -109,7 +109,7 @@ const Users = () => {
   });
 
   const deleteUserMut = useMutation({
-    mutationFn: (id: number) => adminService.deleteUser(id),
+    mutationFn: (id: string | number) => adminService.deleteUser(id),
     onSuccess: () => {
       toast.success("User deleted successfully.");
       setDeleteUserId(null);
@@ -196,7 +196,7 @@ const Users = () => {
                 </TableRow>
               ) : (
                 paginatedUsers.map((user) => (
-                  <TableRow key={user.id} className="group">
+                  <TableRow key={user.uuid || user.id} className="group">
                     <TableCell className="pl-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600">
@@ -233,7 +233,7 @@ const Users = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => setResetUserId(user.id)}>
+                          <DropdownMenuItem onClick={() => setResetUserId(user.uuid || user.id)}>
                             <KeyRound className="h-4 w-4 mr-2 text-slate-500" />
                             Reset Password
                           </DropdownMenuItem>
@@ -248,7 +248,7 @@ const Users = () => {
                                 {["attendee", "speaker", "judge", "admin"].map((r) => (
                                   <DropdownMenuItem 
                                     key={r}
-                                    onClick={() => updateRoleMut.mutate({ id: user.id, role: r as UserRole })}
+                                    onClick={() => updateRoleMut.mutate({ id: user.uuid || user.id, role: r as UserRole })}
                                     disabled={user.role === r}
                                   >
                                     <span className="capitalize">{r}</span>
@@ -260,7 +260,7 @@ const Users = () => {
                           </DropdownMenuSub>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
-                            onClick={() => setDeleteUserId(user.id)}
+                            onClick={() => setDeleteUserId(user.uuid || user.id)}
                             className="text-red-500 focus:text-red-600 focus:bg-red-50"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />

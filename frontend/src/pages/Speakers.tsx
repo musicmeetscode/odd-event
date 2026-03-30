@@ -10,7 +10,7 @@ import type { Speaker } from "@/types/api";
 
 const Speakers = () => {
   const { id } = useParams<{ id: string }>();
-  const eventId = Number(id);
+  const eventId = id || "";
   const navigate = useNavigate();
 
   const { data: event } = useQuery({

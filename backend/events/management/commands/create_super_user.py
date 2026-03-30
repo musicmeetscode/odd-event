@@ -9,7 +9,7 @@ class Command(BaseCommand):
         User = get_user_model()
         
         # Read from environment variables with safe defaults
-        username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin')
+        username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'Adminuser')
         email = os.environ.get('DJANGO_SUPERUSER_EMAIL', 'nahabwe.edwin12@gmail.com')
         password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', '@@!!admin123234SDF')
 

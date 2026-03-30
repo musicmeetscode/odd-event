@@ -21,6 +21,7 @@ run_command "python manage.py migrate --no-input"
 
 echo "Create super user"
 run_command "python manage.py create_super_user"
+run_command "python manage.py generate_uuids"
 
 echo "Starting main process..."
 exec "$@"

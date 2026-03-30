@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { authService } from '@/services/auth';
+import { brand } from '@/config/brandConfig';
 import type { UserRole } from '@/types/api';
 
 interface AuthContextType {
@@ -9,7 +10,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (token: string, username: string, role: UserRole) => void;
-  loginWithGoogle: (credential: string, eventId?: number) => Promise<any>;
+  loginWithGoogle: (credential: string, eventId?: string | number) => Promise<import('@/types/api').AuthResponse>;
   logout: () => Promise<void>;
 }
 
@@ -35,6 +36,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
+  // Inject brand colors into CSS variables
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--brand-primary', brand.colors.primary);
+    root.style.setProperty('--brand-accent', brand.colors.accent);
+    root.style.setProperty('--brand-surface', brand.colors.surface || "#FFFFFF");
+    root.style.setProperty('--brand-border', brand.colors.border || "#E2E8F0");
+  }, []);
+
   const login = (newToken: string, newUsername: string, newRole: UserRole) => {
     localStorage.setItem('events-token', newToken);
     localStorage.setItem('events-username', newUsername);
@@ -45,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRole(newRole);
   };
 
-  const loginWithGoogle = async (credential: string, eventId?: number) => {
+  const loginWithGoogle = async (credential: string, eventId?: string | number) => {
     const data = await authService.googleLogin(credential, eventId);
     login(data.token, data.username, data.role);
     return data;
@@ -85,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

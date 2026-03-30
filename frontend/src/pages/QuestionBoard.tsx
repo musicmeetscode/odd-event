@@ -18,7 +18,7 @@ import type { Question } from "@/types/api";
 
 const QuestionBoard = () => {
   const { id, sid } = useParams<{ id: string; sid: string }>();
-  const eventId = Number(id);
+  const eventId = id || "";
   const sessionId = Number(sid);
   const navigate = useNavigate();
   const { isAuthenticated, role } = useAuth();

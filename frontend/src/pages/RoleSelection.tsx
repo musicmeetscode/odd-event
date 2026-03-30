@@ -3,9 +3,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CalendarDays } from "lucide-react";
-import { brand } from "@/config/brandConfig";
+import { useBrand } from "@/contexts/BrandContext";
 
 const RoleSelection = () => {
+  const { brand } = useBrand();
   const navigate = useNavigate();
   const { isAuthenticated, role } = useAuth();
 
@@ -21,8 +22,10 @@ const RoleSelection = () => {
       <Card className="w-full max-w-md border-border/50 shadow-xl">
         <CardContent className="pt-8 pb-8 px-8">
           <div className="text-center mb-8">
-            <img src={brand.logo} alt={brand.fullName} className="w-20 h-20 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold tracking-tight">{brand.fullName}</h1>
+            <img src={brand.logo || "/logo.png"} alt={brand.name} className="w-20 h-20 mx-auto mb-4" />
+            <h1 className="text-3xl font-bold tracking-tight">
+              {brand.name} <span className="text-primary">{brand.tagline}</span>
+            </h1>
             <p className="text-muted-foreground mt-2">
               Discover events, compete, and connect
             </p>

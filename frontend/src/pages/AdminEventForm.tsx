@@ -33,6 +33,7 @@ const EVENT_TYPES: { value: EventType; label: string }[] = [
 const AdminEventForm = () => {
   const { id } = useParams<{ id: string }>();
   const isEdit = !!id;
+  const eventId = id || "";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -59,8 +60,8 @@ const AdminEventForm = () => {
   const [sig3, setSig3] = useState<string>("none");
 
   const { data: event, isLoading: isLoadingEvent } = useQuery({
-    queryKey: ["event", id],
-    queryFn: () => eventsService.getEvent(Number(id)),
+    queryKey: ["event", eventId],
+    queryFn: () => eventsService.getEvent(eventId),
     enabled: isEdit,
   });
 
@@ -120,18 +121,18 @@ const AdminEventForm = () => {
       };
 
       if (isEdit) {
-        return eventsService.patchEvent(Number(id), payload as any);
+        return eventsService.patchEvent(eventId, payload as unknown as Partial<Event>);
       } else {
-        return eventsService.createEvent(payload as any);
+        return eventsService.createEvent(payload as unknown as Partial<Event>);
       }
     },
     onSuccess: (data) => {
       toast.success(isEdit ? "Event updated! 🚀" : "Event created! 🎉");
       queryClient.invalidateQueries({ queryKey: ["events"] });
-      if (isEdit) queryClient.invalidateQueries({ queryKey: ["event", id] });
-      navigate(`/events/${data.id}`);
+      if (isEdit) queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+      navigate(`/events/${data.uuid || data.id}`);
     },
-    onError: (error: any) => {
+    onError: (error: any) => { // Using any for Axios error response access is common pattern here
       const msg = error.response?.data?.detail || error.response?.data?.error || "An error occurred.";
       toast.error(String(msg));
     },
@@ -167,7 +168,7 @@ const AdminEventForm = () => {
           variant="ghost"
           size="sm"
           className="mb-6 -ml-2"
-          onClick={() => navigate(isEdit ? `/events/${id}` : "/events")}
+          onClick={() => navigate(isEdit ? `/events/${eventId}` : "/events")}
         >
           <ArrowLeft className="h-4 w-4 mr-1" /> {isEdit ? "Back to Event" : "Back to Events"}
         </Button>

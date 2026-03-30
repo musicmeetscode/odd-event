@@ -1,3 +1,4 @@
+from .models import BrandingConfiguration
 from rest_framework import serializers
 from django.db.models import Sum, F
 from .models import (
@@ -8,10 +9,15 @@ from .models import (
 
 
 class UserSerializer(serializers.ModelSerializer):
+    is_google_connected = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'display_name', 'name', 'role', 'email', 'bio', 'profession', 'avatar_url', 'is_flagged']
-        read_only_fields = ['id', 'role', 'is_flagged']
+        fields = ['id', 'uuid', 'username', 'display_name', 'name', 'role', 'email', 'bio', 'profession', 'avatar_url', 'is_flagged', 'is_google_connected']
+        read_only_fields = ['id', 'uuid', 'role', 'is_flagged']
+
+    def get_is_google_connected(self, obj):
+        return bool(obj.google_id)
 
 
 class RegistrationSerializer(serializers.Serializer):
@@ -40,6 +46,12 @@ class SignatorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'title', 'organization', 'signature']
 
 
+class BrandingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BrandingConfiguration
+        fields = '__all__'
+
+
 # ─── Events ────────────────────────────────────────────────────
 
 class JudgingCriteriaSerializer(serializers.ModelSerializer):
@@ -58,7 +70,7 @@ class EventListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
         fields = [
-            'id', 'title', 'description', 'event_type', 'start_date',
+            'id', 'uuid', 'title', 'description', 'event_type', 'start_date',
             'end_date', 'location', 'is_active', 'max_attendees',
             'allow_teams', 'max_team_size',
             'attendee_count', 'created_by_name', 'is_registered',
@@ -84,23 +96,30 @@ class EventDetailSerializer(serializers.ModelSerializer):
     is_competition = serializers.BooleanField(read_only=True)
     
     partners = PartnerSerializer(many=True, read_only=True)
-    signatory_1 = SignatorySerializer(read_only=True)
-    signatory_2 = SignatorySerializer(read_only=True)
-    signatory_3 = SignatorySerializer(read_only=True)
+    signatories = SignatorySerializer(many=True, read_only=True)
+    
+    # Adding ID fields for writing (many-to-many updates)
+    partner_ids = serializers.PrimaryKeyRelatedField(
+        many=True, write_only=True, queryset=Partner.objects.all(), source='partners', required=False
+    )
+    signatory_ids = serializers.PrimaryKeyRelatedField(
+        many=True, write_only=True, queryset=Signatory.objects.all(), source='signatories', required=False
+    )
 
     class Meta:
         model = Event
         fields = [
-            'id', 'title', 'description', 'event_type', 'start_date',
+            'id', 'uuid', 'title', 'description', 'event_type', 'start_date',
             'end_date', 'location', 'is_active', 'max_attendees',
             'allow_teams', 'max_team_size',
             'attendee_count', 'created_by', 'created_by_name',
             'judging_criteria', 'is_registered', 'is_competition',
             'created_at', 'updated_at',
             'is_recurring', 'recurrence_type', 'recurrence_end_date', 'recurrence_group_id', 
-            'certificates_released', 'partners', 'signatory_1', 'signatory_2', 'signatory_3',
+            'certificates_released', 'partners', 'signatories',
+            'partner_ids', 'signatory_ids',
         ]
-        read_only_fields = ['created_by', 'created_at', 'updated_at']
+        read_only_fields = ['created_by', 'created_at', 'updated_at', 'uuid']
 
     def get_is_registered(self, obj):
         request = self.context.get('request')

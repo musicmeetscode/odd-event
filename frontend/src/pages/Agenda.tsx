@@ -19,7 +19,7 @@ const SESSION_COLORS: Record<string, string> = {
 
 const Agenda = () => {
   const { id } = useParams<{ id: string }>();
-  const eventId = Number(id);
+  const eventId = id || "";
   const navigate = useNavigate();
 
   const { data: event, isLoading: eventLoading } = useQuery({

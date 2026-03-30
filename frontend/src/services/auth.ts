@@ -35,7 +35,7 @@ export const authService = {
     return response.data;
   },
 
-  googleLogin: async (credential: string, eventId?: number) => {
+  googleLogin: async (credential: string, eventId?: string | number) => {
     const response = await apiClient.post<AuthResponse>("/auth/google/", {
       token: credential,
       event_id: eventId,
@@ -43,7 +43,7 @@ export const authService = {
     return response.data;
   },
 
-  checkIn: async (eventId: number, name: string, profession: string, email?: string, phone?: string) => {
+  checkIn: async (eventId: string | number, name: string, profession: string, email?: string, phone?: string) => {
     const response = await apiClient.post("/check-in/", {
       event_id: eventId,
       name,

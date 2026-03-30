@@ -3,15 +3,18 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { adminService } from "@/services/admin";
 import { eventsService } from "@/services/events";
+import type { CertificateData, Partner, Signatory } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Loader2, Award, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas-pro";
-import { brand } from "@/config/brandConfig";
+import { useBrand } from "@/contexts/BrandContext";
+import { getMediaUrl } from "@/lib/utils";
 
 const Certificate = () => {
+    const { brand } = useBrand();
     const { id } = useParams<{ id: string }>();
-    const eventId = Number(id);
+    const eventId = id || "";
     const navigate = useNavigate();
     const certRef = useRef<HTMLDivElement>(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -29,7 +32,7 @@ const Certificate = () => {
         queryFn: () => eventsService.getEvent(eventId),
     });
 
-    const { data: cert, isLoading, error } = useQuery<any>({
+    const { data: cert, isLoading, error } = useQuery<CertificateData>({
         queryKey: ["certificate", eventId],
         queryFn: () => adminService.getCertificate(eventId),
     });
@@ -86,9 +89,17 @@ const Certificate = () => {
         </div>
     );
 
-    const signatories = [event.signatory_1, event.signatory_2, event.signatory_3].filter(Boolean);
+    const signatories = (event.signatories || []).slice(0, 5); // Limit to 5 for layout sanity, though we'll scale for more if needed
     const partnersList = event.partners || [];
     const serialNumber = `BOK-${new Date(event.start_date).getFullYear()}-${cert.attendee_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}${eventId}${cert.submission?.id || '0'}`;
+
+    // Dynamic scaling logic
+    const signatureCount = signatories.length;
+    const signatureWidth = signatureCount > 3 ? "w-32" : "w-48";
+    const signatureGap = signatureCount > 3 ? "gap-8" : "gap-24";
+    const signatureFontSize = signatureCount > 3 ? "text-[12px]" : "text-[14px]";
+    const signatureTitleSize = signatureCount > 3 ? "text-[8px]" : "text-[10px]";
+    const signatureMt = signatureCount > 3 ? "mt-8" : "mt-12";
 
     return (
         <div className="max-w-5xl mx-auto px-4 py-6 pt-20">
@@ -140,93 +151,84 @@ const Certificate = () => {
                     }}></div>
 
                     {/* Main Content Container */}
-                    <div className="relative h-full flex flex-col items-center px-16 pt-16 z-10 text-center">
+                    <div className="relative h-full flex flex-col items-center px-16 pt-12 z-10 text-center">
                         
                         {/* Header Section */}
-                        <div className="flex flex-col items-center mb-4">
-                            <div className="flex items-center gap-4 mb-4">
-                                <img src="/logo.png" alt="Logo" className="w-16 h-16 object-contain" crossOrigin="anonymous" />
+                        <div className="flex flex-col items-center mb-2">
+                            <div className="flex items-center gap-4 mb-2">
+                                <img src={brand.logo || "/logo.png"} alt="Logo" className="w-14 h-14 object-contain" crossOrigin="anonymous" />
                                 <div className="text-left">
-                                    <div className="text-xl font-bold tracking-widest leading-none" style={{ color: brand.colors.primary }}>{brand.name.toUpperCase()}</div>
-                                    <div className="text-sm font-medium tracking-[0.3em]" style={{ color: brand.colors.accent }}>{brand.tagline.toUpperCase()}</div>
+                                    <div className="text-lg font-bold tracking-widest leading-none" style={{ color: brand.primary_color }}>{brand.name.toUpperCase()}</div>
+                                    <div className="text-[11px] font-medium tracking-[0.3em]" style={{ color: brand.accent_color }}>{brand.tagline.toUpperCase()}</div>
                                 </div>
                             </div>
-                            {/* <div className="text-[12px] uppercase tracking-[0.4em] text-slate-400 mb-1 font-semibold">Presents</div>
-                            <div className="text-lg font-bold text-[#F58220] uppercase tracking-widest">
-                                {event?.title}
-                            </div>
-                            <div className="text-sm text-slate-400 font-medium mt-1">
-                                {new Date(event?.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}
-                            </div> */}
                         </div>
 
                         {/* Title Section */}
-                        <div className="mb-8 mt-2">
-                            <div className="text-[14px] uppercase tracking-[0.5em] text-slate-400 mb-2 font-bold leading-none">Certificate of</div>
-                            <div className="text-6xl font-bold italic" style={{ fontFamily: "'EB Garamond', serif", color: brand.colors.primary }}>
+                        <div className="mb-6 mt-1">
+                            <div className="text-[12px] uppercase tracking-[0.5em] text-slate-400 mb-1 font-bold leading-none">Certificate of</div>
+                            <div className="text-5xl font-bold italic" style={{ fontFamily: "'EB Garamond', serif", color: brand.primary_color }}>
                                 {cert.certificate_type.split(' - ')[0] || "Excellence"}
                             </div>
                             {cert.rank && (
-                                <div className="font-bold text-sm tracking-[0.3em] uppercase mt-2" style={{ color: brand.colors.accent }}>
+                                <div className="font-bold text-[12px] tracking-[0.3em] uppercase mt-1" style={{ color: brand.accent_color }}>
                                     {cert.certificate_type.includes('Winner') ? 'THE WINNER' : cert.certificate_type.split(' - ')[1]?.toUpperCase()}
                                 </div>
                             )}
                         </div>
 
                         {/* Recipient Section */}
-                        <div className="mb-8">
-                            <div className="text-[14px] uppercase tracking-[0.4em] text-slate-400 mb-6 font-bold">Presented To</div>
+                        <div className="mb-6">
+                            <div className="text-[12px] uppercase tracking-[0.4em] text-slate-400 mb-4 font-bold">Presented To</div>
                             <div 
-                                className="text-7xl text-[#1a1a2e] mb-4" 
+                                className="text-6xl text-[#1a1a2e] mb-2" 
                                 style={{ fontFamily: "'Great Vibes', cursive" }}
                             >
                                 {cert.attendee_name}
                             </div>
-                            <div className="max-w-2xl mx-auto text-slate-500 leading-relaxed text-[15px]">
+                            <div className="max-w-2xl mx-auto text-slate-500 leading-relaxed text-[14px]">
                                 {cert.rank ? (
-                                    <>In recognition of outstanding achievement in the <span className="text-[#F58220] font-bold">{event?.title}</span>, 
+                                    <>In recognition of outstanding achievement in the <span className="text-[#F58220] font-bold">{event?.title}</span> at <span className="font-bold text-[#1a365d] italic">{event?.location || brand.company_name}</span> on <span className="font-bold text-[#1a365d] italic">{new Date(event?.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>, 
                                     demonstrating exceptional skill and creativity with the submission <span className="font-bold text-[#1a365d] italic">"{cert.submission?.title}"</span>.</>
                                 ) : (
-                                    <>In recognition of active participation and commitment to excellence during the <span className="text-[#F58220] font-bold">{event?.title}</span>. 
+                                    <>In recognition of active participation and commitment to excellence during the <span className="text-[#F58220] font-bold">{event?.title}</span> held at <span className="font-bold text-[#1a365d] italic">{event?.location || brand.company_name}</span> on <span className="font-bold text-[#1a365d] italic">{new Date(event?.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>. 
                                     This achievement reflects a dedication to growth, innovation, and the mission to Code · Connect · Learn · Grow.</>
                                 )}
                             </div>
                         </div>
 
-                        {/* Footer Info Grid */}
-                        <div className="grid grid-cols-3 gap-12 w-full max-w-4xl mt-1 border-t border-slate-100 pt-8">
-                            <div className="text-center">
-                                <div className="text-[11px] uppercase tracking-[0.3em] text-slate-400 mb-1 font-bold">Date</div>
-                                <div className="text-[14px] font-bold text-[#1a1a2e]">
-                                    {new Date(event?.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-                                </div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-[11px] uppercase tracking-[0.3em] text-slate-400 mb-1 font-bold">Venue</div>
-                                <div className="text-[14px] font-bold text-[#1a1a2e]">{event?.location || brand.company}</div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-[11px] uppercase tracking-[0.3em] text-slate-400 mb-1 font-bold">Partners</div>
-                                <div className="text-[13px] font-bold text-[#1a1a2e]">
-                                    {partnersList.length > 0 ? partnersList.map((p: any) => p.name).join(' · ') : brand.company}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Signatories Section */}
-                        <div className="flex justify-center gap-24 w-full mt-12 mb-4">
-                            {signatories.map((sig: any, idx: number) => (
-                                <div key={idx} className="flex flex-col items-center">
-                                    <div className="h-16 flex items-end mb-1">
-                                        {sig.signature && (
-                                            <img src={sig.signature} alt="Signature" className="h-14 object-contain" crossOrigin="anonymous" />
-                                        )}
+                        {/* Assets Section (Signatories first, then Partners) */}
+                        <div className="flex flex-col items-center w-full -mt-4 space-y-4">
+                            {/* Signatories Section */}
+                            <div className={`flex justify-center flex-wrap ${signatureGap} w-full ${signatureMt}`}>
+                                {signatories.map((sig: Signatory, idx: number) => (
+                                    <div key={sig.id || idx} className={`flex flex-col items-center max-w-[220px]`}>
+                                        <div className="h-16 flex items-end mb-1">
+                                            {sig.signature ? (
+                                                <img src={getMediaUrl(sig.signature)} alt="Signature" className="h-14 object-contain" crossOrigin="anonymous" />
+                                            ) : (
+                                                <div className="h-14" />
+                                            )}
+                                        </div>
+                                        <div className={`${signatureWidth} h-[1.5px] bg-[#1a365d]/20 mb-2`}></div>
+                                        <div className="text-[16px] font-bold text-[#1a1a2e] uppercase tracking-tighter">{sig.name}</div>
+                                        <div className="text-[10px] uppercase text-slate-400 font-bold tracking-widest leading-tight text-center">{sig.title}</div>
                                     </div>
-                                    <div className="w-48 h-[1px] bg-slate-200 mb-2"></div>
-                                    <div className="text-[14px] font-bold text-[#1a1a2e] uppercase">{sig.name}</div>
-                                    <div className="text-[10px] uppercase text-slate-400 font-bold tracking-wider leading-tight">{sig.title}</div>
+                                ))}
+                            </div>
+
+                            {/* Partners Section (Smaller) */}
+                            <div className="pt-8 border-t border-slate-100 flex flex-col items-center w-full max-w-2xl">
+                                <div className="text-[9px] uppercase tracking-[0.4em] text-slate-300 mb-3 font-bold">Supported By</div>
+                                <div className="flex flex-wrap justify-center items-center gap-6 opacity-80 filter grayscale hover:grayscale-0 transition-all">
+                                    {partnersList.length > 0 ? partnersList.map((p: Partner) => (
+                                        <div key={p.id} className="flex items-center gap-2">
+                                            {p.logo && <img src={getMediaUrl(p.logo)} alt={p.name} className="h-6 w-auto object-contain" crossOrigin="anonymous" />}
+                                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter">{p.name}</span>
+                                        </div>
+                                    )) : <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter">{brand.company_name}</span>}
                                 </div>
-                            ))}
+                            </div>
                         </div>
 
                         {/* Serial Number & Verification */}
@@ -235,8 +237,8 @@ const Certificate = () => {
                         </div>
 
                         {/* Seal */}
-                        <div className="absolute bottom-10 right-10 w-28 h-28 rounded-full border-4 flex items-center justify-center p-1 bg-white/10 backdrop-blur-sm shadow-xl" style={{ borderColor: `${brand.colors.accent}33` }}>
-                            <div className="w-full h-full rounded-full border border-dashed flex flex-col items-center justify-center" style={{ borderColor: `${brand.colors.accent}66`, color: brand.colors.accent }}>
+                        <div className="absolute bottom-10 right-10 w-28 h-28 rounded-full border-4 flex items-center justify-center p-1 bg-white/10 backdrop-blur-sm shadow-xl" style={{ borderColor: `${brand.accent_color}33` }}>
+                            <div className="w-full h-full rounded-full border border-dashed flex flex-col items-center justify-center" style={{ borderColor: `${brand.accent_color}66`, color: brand.accent_color }}>
                                 <div className="text-[8px] font-black tracking-tighter leading-none mb-1 text-center">{brand.name.toUpperCase()}<br/>{brand.tagline.toUpperCase()}</div>
                                 <Award className="w-8 h-8 opacity-40" />
                                 <div className="text-[8px] font-bold mt-1 tracking-widest">{new Date().getFullYear()}</div>

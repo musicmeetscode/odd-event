@@ -11,10 +11,13 @@ from .models import (
 
 @admin.register(User)
 class UserAdmin(ImportExportModelAdmin):
-    list_display = ('username', 'display_name', 'role', 'email', 'phone', 'must_reset_password', 'is_staff')
-    list_filter = ('role', 'is_staff', 'is_active', 'must_reset_password')
+    list_display = ('username', 'display_name', 'role', 'email', 'phone', 'is_deleted', 'is_staff')
+    list_filter = ('role', 'is_deleted', 'is_staff', 'is_active', 'must_reset_password')
     search_fields = ('username', 'display_name', 'name', 'email', 'phone')
-    list_editable = ('role',)
+    list_editable = ('role', 'is_deleted')
+
+    def get_queryset(self, request):
+        return User.all_objects.all()
 
 
 # ─── Events ─────────────────────────────────────────────────────

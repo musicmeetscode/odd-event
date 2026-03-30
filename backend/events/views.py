@@ -7,12 +7,15 @@ from django.db.models.functions import Coalesce
 from django.db import IntegrityError
 from django.http import HttpResponse
 from django.conf import settings
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.permissions import IsAuthenticated, AllowAny
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission
+from rest_framework import status, viewsets, generics
 from rest_framework.decorators import action
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
@@ -21,6 +24,7 @@ from .models import (
     User, Event, EventRegistration, Session, Question,
     Submission, JudgingCriteria, JudgeAssignment, Score,
     Team, TeamMember, SpeakerSession, Partner, Signatory,
+    BrandingConfiguration,
 )
 from .serializers import (
     RegistrationSerializer, UserSerializer,
@@ -31,9 +35,31 @@ from .serializers import (
     LeaderboardEntrySerializer, JudgeAssignmentSerializer,
     TeamSerializer, TeamMemberSerializer,
     PartnerSerializer, SignatorySerializer,
+    BrandingSerializer,
 )
 from .permissions import IsAdminOrReadOnly, IsJudge, IsAdminUser, IsJudgeOrAdmin
 from .google_auth import verify_google_token
+
+def resolve_event(identifier):
+    try:
+        return Event.objects.get(uuid=identifier)
+    except (ValidationError, ValueError, TypeError, Event.DoesNotExist):
+        pass
+    try:
+        return Event.objects.get(pk=identifier)
+    except (ValidationError, ValueError, TypeError, Event.DoesNotExist):
+        return None
+
+def resolve_user(identifier):
+    try:
+        return User.objects.get(uuid=identifier)
+    except (ValidationError, ValueError, TypeError, User.DoesNotExist):
+        pass
+    try:
+        return User.objects.get(pk=identifier)
+    except (ValidationError, ValueError, TypeError, User.DoesNotExist):
+        return None
+
 
 
 # ─── Auth ───────────────────────────────────────────────────────
@@ -161,8 +187,8 @@ class GoogleLoginView(APIView):
         
         check_in_result = None
         if event_id:
-            try:
-                event = Event.objects.get(id=event_id, is_active=True)
+            event = resolve_event(event_id)
+            if event and event.is_active:
                 reg, created = EventRegistration.objects.get_or_create(
                     user=user, event=event, 
                     defaults={'status': 'checked_in'}
@@ -175,8 +201,6 @@ class GoogleLoginView(APIView):
                     'status': reg.status,
                     'account_created': False # Google users are just linked
                 }
-            except Event.DoesNotExist:
-                pass
 
         token_obj, _ = Token.objects.get_or_create(user=user)
         return Response({
@@ -211,9 +235,8 @@ class CheckInView(APIView):
             return Response({'error': 'Name and Profession can only contain alphanumeric characters, spaces, dots, and hyphens.'}, status=status.HTTP_400_BAD_REQUEST)
         if not event_id:
             return Response({'error': 'Event ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            event = Event.objects.get(id=event_id, is_active=True)
-        except Event.DoesNotExist:
+        event = resolve_event(event_id)
+        if not event or not event.is_active:
             return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
         base_username = name.lower().replace(' ', '_')[:30]
         username = base_username
@@ -268,6 +291,19 @@ class EventViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'list': return EventListSerializer
         return EventDetailSerializer
+    def get_object(self):
+        lookup_value = self.kwargs[self.lookup_url_kwarg or self.lookup_field]
+        queryset = self.filter_queryset(self.get_queryset())
+        try:
+            obj = queryset.get(uuid=lookup_value)
+        except (ValueError, TypeError, queryset.model.DoesNotExist):
+            try:
+                obj = queryset.get(pk=lookup_value)
+            except (ValueError, TypeError, queryset.model.DoesNotExist):
+                from rest_framework.exceptions import NotFound
+                raise NotFound("Event not found.")
+        self.check_object_permissions(self.request, obj)
+        return obj
     def perform_create(self, serializer):
         event = serializer.save(created_by=self.request.user)
         self._handle_recurrence(event)
@@ -322,8 +358,9 @@ class EventViewSet(viewsets.ModelViewSet):
 class EventRegistrationView(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request, event_id):
-        try: event = Event.objects.get(pk=event_id, is_active=True)
-        except Event.DoesNotExist: return Response({"error": "Event not found or inactive."}, status=status.HTTP_404_NOT_FOUND)
+        event = resolve_event(event_id)
+        if not event or not event.is_active: 
+            return Response({"error": "Event not found or inactive."}, status=status.HTTP_404_NOT_FOUND)
         if event.max_attendees and event.attendee_count >= event.max_attendees:
             return Response({"error": "Event is full."}, status=status.HTTP_400_BAD_REQUEST)
         reg, created = EventRegistration.objects.get_or_create(event=event, user=request.user, defaults={'status': 'registered'})
@@ -357,9 +394,14 @@ class SessionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
     def get_queryset(self):
         event_id = self.kwargs.get('event_id')
-        return Session.objects.filter(event_id=event_id) if event_id else Session.objects.all()
+        if event_id:
+            event = resolve_event(event_id)
+            return Session.objects.filter(event=event) if event else Session.objects.none()
+        return Session.objects.all()
     def perform_create(self, serializer):
-        serializer.save(event=Event.objects.get(pk=self.kwargs.get('event_id')))
+        event = resolve_event(self.kwargs.get('event_id'))
+        if event:
+            serializer.save(event=event)
 
 
 class QuestionViewSet(viewsets.ModelViewSet):
@@ -386,10 +428,13 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         return SubmissionDetailSerializer if self.action == 'retrieve' else SubmissionSerializer
     def get_queryset(self):
         event_id = self.kwargs.get('event_id')
-        return Submission.objects.filter(event_id=event_id) if event_id else Submission.objects.all()
+        if event_id:
+            event = resolve_event(event_id)
+            return Submission.objects.filter(event=event) if event else Submission.objects.none()
+        return Submission.objects.all()
     def perform_create(self, serializer):
-        event = Event.objects.get(pk=self.kwargs.get('event_id'))
-        if not event.is_competition:
+        event = resolve_event(self.kwargs.get('event_id'))
+        if not event or not event.is_competition:
             from rest_framework.exceptions import ValidationError
             raise ValidationError("Submissions are only for competition events.")
         serializer.save(submitted_by=self.request.user, event=event)
@@ -405,7 +450,7 @@ class JudgeDashboardView(APIView):
         for event in events:
             scored_count = Score.objects.filter(judge=request.user, submission__event=event).values('submission').distinct().count()
             data.append({
-                'event_id': event.id, 'event_title': event.title, 'event_type': event.event_type,
+                'event_id': event.uuid, 'event_title': event.title, 'event_type': event.event_type,
                 'total_submissions': Submission.objects.filter(event=event).count(), 'scored_submissions': scored_count,
                 'criteria': JudgingCriteriaSerializer(event.judging_criteria.all(), many=True).data,
             })
@@ -434,7 +479,7 @@ class ScoreView(APIView):
     def _broadcast_leaderboard(self, event):
         try:
             channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(f'event_{event.id}', {'type': 'leaderboard_update', 'data': self._compute_leaderboard(event)})
+            async_to_sync(channel_layer.group_send)(f'event_{event.uuid}', {'type': 'leaderboard_update', 'data': self._compute_leaderboard(event)})
         except Exception: pass
     def _compute_leaderboard(self, event):
         submissions = Submission.objects.filter(event=event)
@@ -450,8 +495,8 @@ class ScoreView(APIView):
 class LeaderboardView(APIView):
     permission_classes = [AllowAny]
     def get(self, request, event_id):
-        try: event = Event.objects.get(pk=event_id)
-        except Event.DoesNotExist: return Response({"error": "Event not found."}, status=status.HTTP_404_NOT_FOUND)
+        event = resolve_event(event_id)
+        if not event: return Response({"error": "Event not found."}, status=status.HTTP_404_NOT_FOUND)
         if not event.is_competition: return Response({"error": "Leaderboard is only for competition events."}, status=status.HTTP_400_BAD_REQUEST)
         submissions = Submission.objects.filter(event=event)
         entries = []
@@ -478,32 +523,43 @@ class SignatoryViewSet(viewsets.ModelViewSet):
 class JudgingCriteriaViewSet(viewsets.ModelViewSet):
     serializer_class = JudgingCriteriaSerializer
     permission_classes = [IsAdminUser]
-    def get_queryset(self): return JudgingCriteria.objects.filter(event_id=self.kwargs.get('event_id'))
-    def perform_create(self, serializer): serializer.save(event=Event.objects.get(id=self.kwargs.get('event_id')))
+    def get_queryset(self): 
+        event = resolve_event(self.kwargs.get('event_id'))
+        return JudgingCriteria.objects.filter(event=event) if event else JudgingCriteria.objects.none()
+    def perform_create(self, serializer): 
+        event = resolve_event(self.kwargs.get('event_id'))
+        if event: serializer.save(event=event)
 
 class JudgeAssignmentView(APIView):
     permission_classes = [IsAdminUser]
     def get(self, request, event_id):
-        assignments = JudgeAssignment.objects.filter(event_id=event_id).select_related('judge')
-        return Response([{'id': a.id, 'judge_id': a.judge.id, 'judge_username': a.judge.username, 'judge_name': a.judge.display_name or a.judge.username} for a in assignments])
+        event = resolve_event(event_id)
+        assignments = JudgeAssignment.objects.filter(event=event).select_related('judge') if event else []
+        return Response([{'id': a.id, 'judge_id': a.judge.uuid, 'judge_username': a.judge.username, 'judge_name': a.judge.display_name or a.judge.username} for a in assignments])
     def post(self, request, event_id):
         judge_id = request.data.get('judge_id')
-        try:
-            event = Event.objects.get(id=event_id)
-            judge = User.objects.get(id=judge_id, role__in=['judge', 'admin'])
-            JudgeAssignment.objects.get_or_create(event=event, judge=judge)
-            return Response({'detail': 'Judge assigned.'}, status=status.HTTP_201_CREATED)
-        except (Event.DoesNotExist, User.DoesNotExist): return Response({'error': 'Event or Judge not found.'}, status=status.HTTP_404_NOT_FOUND)
+        event = resolve_event(event_id)
+        if not event: return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+        judge = resolve_user(judge_id)
+        if not judge or judge.role not in ['judge', 'admin']: 
+            return Response({'error': 'Judge not found.'}, status=status.HTTP_404_NOT_FOUND)
+        JudgeAssignment.objects.get_or_create(event=event, judge=judge)
+        return Response({'detail': 'Judge assigned.'}, status=status.HTTP_201_CREATED)
     def delete(self, request, event_id):
         judge_id = request.data.get('judge_id')
-        JudgeAssignment.objects.filter(event_id=event_id, judge_id=judge_id).delete()
+        event, judge = resolve_event(event_id), resolve_user(judge_id)
+        if event and judge: JudgeAssignment.objects.filter(event=event, judge=judge).delete()
         return Response({'detail': 'Judge removed.'}, status=status.HTTP_200_OK)
 
 class TeamViewSet(viewsets.ModelViewSet):
     serializer_class = TeamSerializer
     permission_classes = [IsAuthenticated]
-    def get_queryset(self): return Team.objects.filter(event_id=self.kwargs.get('event_id'))
-    def perform_create(self, serializer): serializer.save(event=Event.objects.get(id=self.kwargs.get('event_id')), created_by=self.request.user)
+    def get_queryset(self): 
+        event = resolve_event(self.kwargs.get('event_id'))
+        return Team.objects.filter(event=event) if event else Team.objects.none()
+    def perform_create(self, serializer): 
+        event = resolve_event(self.kwargs.get('event_id'))
+        if event: serializer.save(event=event, created_by=self.request.user)
     @action(detail=True, methods=['post'])
     def join(self, request, event_id=None, pk=None):
         team = self.get_object()
@@ -523,13 +579,26 @@ class UserListView(APIView):
 class UserDetailView(APIView):
     permission_classes = [IsAdminUser]
     def patch(self, request, user_id):
-        try:
-            user = User.objects.get(id=user_id)
-            user.role = request.data.get('role', user.role)
-            user.is_flagged = request.data.get('is_flagged', user.is_flagged)
-            user.save()
-            return Response(UserSerializer(user).data)
-        except User.DoesNotExist: return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        user = resolve_user(user_id)
+        if not user: 
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        user.role = request.data.get('role', user.role)
+        user.is_flagged = request.data.get('is_flagged', user.is_flagged)
+        user.save()
+        return Response(UserSerializer(user).data)
+
+    def delete(self, request, user_id):
+        user = resolve_user(user_id)
+        if not user:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Safety check: prevent self-deletion
+        if user.id == request.user.id:
+            return Response({'error': 'You cannot delete your own account.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        user.is_deleted = True
+        user.save()
+        return Response({'detail': 'User deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
 
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
@@ -546,8 +615,8 @@ class UserProfileView(APIView):
 class CertificateView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, event_id):
-        try: event = Event.objects.get(id=event_id)
-        except Event.DoesNotExist: return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+        event = resolve_event(event_id)
+        if not event: return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
         reg = EventRegistration.objects.filter(event=event, user=request.user).first()
         is_admin_preview = request.user.role == 'admin' and not reg
         if not reg and not is_admin_preview:
@@ -609,8 +678,8 @@ class PublicSubmissionView(APIView):
 class WallOfFameView(APIView):
     permission_classes = [AllowAny]
     def get(self, request, event_id):
-        try: event = Event.objects.get(id=event_id)
-        except Event.DoesNotExist: return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+        event = resolve_event(event_id)
+        if not event: return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
         submissions = Submission.objects.filter(event=event)
         entries = []
         for sub in submissions:
@@ -624,9 +693,9 @@ class WallOfFameView(APIView):
 class ProfileDownloadView(APIView):
     permission_classes = [AllowAny]
     def get(self, request, event_id, user_id=None):
-        try: event = Event.objects.get(id=event_id)
-        except Event.DoesNotExist: return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
-        target_user = User.objects.filter(id=user_id).first() if user_id else (request.user if request.user.is_authenticated else None)
+        event = resolve_event(event_id)
+        if not event: return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+        target_user = resolve_user(user_id) if user_id else (request.user if request.user.is_authenticated else None)
         if not target_user: return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
         is_judge = JudgeAssignment.objects.filter(event=event, judge=target_user).exists()
         return Response({'event_title': event.title, 'name': target_user.display_name or target_user.username, 'role': target_user.get_role_display(), 'profession': target_user.profession, 'bio': target_user.bio, 'avatar_url': target_user.avatar_url, 'is_judge': is_judge})
@@ -696,15 +765,15 @@ class AdminPasswordResetView(APIView):
 
 class EventAttendeesView(APIView):
     permission_classes = [IsAdminUser]
-    def get(self, request, event_id): return Response(EventRegistrationSerializer(EventRegistration.objects.filter(event_id=event_id), many=True).data)
+    def get(self, request, event_id):
+        event = resolve_event(event_id)
+        return Response(EventRegistrationSerializer(EventRegistration.objects.filter(event=event), many=True).data) if event else Response([])
 
 class EventAnalyticsView(APIView):
     permission_classes = [IsAdminUser]
     def get(self, request, event_id):
-        try:
-            event = Event.objects.get(id=event_id)
-        except Event.DoesNotExist:
-            return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+        event = resolve_event(event_id)
+        if not event: return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
             
         total_registered = EventRegistration.objects.filter(event=event).count()
         checked_in = EventRegistration.objects.filter(event=event, status='checked_in').count()
@@ -734,7 +803,8 @@ class EventAnalyticsView(APIView):
 class ExportView(APIView):
     permission_classes = [IsAdminUser]
     def get(self, request, event_id):
-        event = Event.objects.get(id=event_id)
+        event = resolve_event(event_id)
+        if not event: return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
         registrations = EventRegistration.objects.filter(event=event).select_related('user')
         output = io.StringIO()
         writer = csv.writer(output)
@@ -746,7 +816,9 @@ class ExportView(APIView):
 
 class SpeakerListView(APIView):
     permission_classes = [AllowAny]
-    def get(self, request, event_id): return Response(UserSerializer(User.objects.filter(role='speaker', speaker_sessions__session__event_id=event_id).distinct(), many=True).data)
+    def get(self, request, event_id):
+        event = resolve_event(event_id)
+        return Response(UserSerializer(User.objects.filter(role='speaker', speaker_sessions__session__event=event).distinct(), many=True).data) if event else Response([])
 
 class SpeakerProfileView(APIView):
     permission_classes = [IsAuthenticated]
@@ -757,3 +829,15 @@ class SpeakerProfileView(APIView):
             if hasattr(user, attr): setattr(user, attr, value)
         user.save()
         return Response(UserSerializer(user).data)
+class BrandingView(generics.RetrieveUpdateAPIView):
+    queryset = BrandingConfiguration.objects.all()
+    serializer_class = BrandingSerializer
+
+    def get_object(self):
+        return BrandingConfiguration.get_solo()
+
+    def get_permissions(self):
+        from rest_framework import permissions
+        if self.request.method in permissions.SAFE_METHODS:
+            return [permissions.AllowAny()]
+        return [IsAuthenticated(), IsAdminUser()]
