@@ -9,14 +9,14 @@ export const judgingService = {
     return response.data;
   },
 
-  getSubmissions: async (eventId: number) => {
+  getSubmissions: async (eventId: string | number) => {
     const response = await apiClient.get<Submission[]>(
       `/events/${eventId}/submissions/`
     );
     return response.data;
   },
 
-  getSubmissionDetail: async (eventId: number, submissionId: number) => {
+  getSubmissionDetail: async (eventId: string | number, submissionId: number) => {
     const response = await apiClient.get<Submission>(
       `/events/${eventId}/submissions/${submissionId}/`
     );

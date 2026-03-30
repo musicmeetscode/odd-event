@@ -25,7 +25,7 @@ export const EventCard = ({ event }: EventCardProps) => {
   return (
     <Card
       className="cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1 border-border/50 hover:border-primary/30"
-      onClick={() => navigate(`/events/${event.id}`)}
+      onClick={() => navigate(`/events/${event.uuid}`)}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">

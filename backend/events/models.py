@@ -17,6 +17,7 @@ class User(AbstractUser):
         ('speaker', 'Speaker'),
     ]
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='attendee')
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, null=True)
     display_name = models.CharField(max_length=150, blank=True, null=True)
     name = models.CharField(max_length=255, blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
@@ -117,6 +118,7 @@ class Event(models.Model):
 
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, null=True)
     event_type = models.CharField(max_length=20, choices=EVENT_TYPE_CHOICES, default='other')
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
@@ -140,6 +142,7 @@ class Event(models.Model):
 
     # Certificate Details (Relational)
     partners = models.ManyToManyField(Partner, blank=True, related_name='events')
+    signatories = models.ManyToManyField(Signatory, blank=True, related_name='events_signatories')
     signatory_1 = models.ForeignKey(Signatory, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     signatory_2 = models.ForeignKey(Signatory, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     signatory_3 = models.ForeignKey(Signatory, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
@@ -389,3 +392,29 @@ class Score(models.Model):
             raise ValidationError(
                 f"Score must be between 0 and {self.criteria.max_score}"
             )
+
+
+class BrandingConfiguration(models.Model):
+    name = models.CharField(max_length=100, default="White Label")
+    tagline = models.CharField(max_length=255, default="Events")
+    logo = models.ImageField(upload_to='branding/', blank=True, null=True)
+    primary_color = models.CharField(max_length=7, default="#2962FF", help_text="Hex color for primary theme")
+    accent_color = models.CharField(max_length=7, default="#F58220", help_text="Hex color for secondary theme")
+    company_name = models.CharField(max_length=255, default="White Label Corp")
+    email = models.EmailField(default="contact@example.com")
+    website = models.CharField(max_length=255, default="EXAMPLE.COM")
+    hashtag = models.CharField(max_length=50, default="#EVENTS2026")
+
+    def save(self, *args, **kwargs):
+        # Simple singleton: if another object exists, update it instead of creating
+        if not self.pk and BrandingConfiguration.objects.exists():
+            return # Or raise Error
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_solo(cls):
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f"App Branding: {self.name}"

@@ -10,7 +10,7 @@ import type { LeaderboardEntry } from "@/types/api";
 
 const Leaderboard = () => {
   const { id } = useParams<{ id: string }>();
-  const eventId = Number(id);
+  const eventId = id || "";
   const navigate = useNavigate();
   const wsRef = useRef<WebSocket | null>(null);
   const [liveEntries, setLiveEntries] = useState<LeaderboardEntry[] | null>(null);

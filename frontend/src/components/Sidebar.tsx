@@ -10,9 +10,10 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { brand } from "@/config/brandConfig";
+import { useBrand } from "@/contexts/BrandContext";
 
 const Sidebar = ({ onClose }: { onClose?: () => void }) => {
+  const { brand } = useBrand();
   const { username, role, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,9 +59,9 @@ const Sidebar = ({ onClose }: { onClose?: () => void }) => {
           onClose?.();
         }}
       >
-        <img src={brand.logo} alt={brand.name} className="w-8 h-8" />
+        <img src={brand.logo || "/logo.png"} alt={brand.name} className="w-8 h-8" />
         <span className="font-bold text-xl tracking-wide text-slate-800">
-          {brand.name} <span style={{ color: brand.colors.accent }}>{brand.tagline}</span>
+          {brand.name} <span style={{ color: brand.accent_color }}>{brand.tagline}</span>
         </span>
       </div>
 
@@ -68,14 +69,14 @@ const Sidebar = ({ onClose }: { onClose?: () => void }) => {
       <div className="p-6 flex flex-col items-center border-b border-slate-100">
         <div
           className="w-20 h-20 rounded-full mb-4 flex items-center justify-center text-2xl font-bold border-2 shadow-sm"
-          style={{ backgroundColor: `${brand.colors.primary}10`, color: brand.colors.primary, borderColor: `${brand.colors.primary}33` }}
+          style={{ backgroundColor: `${brand.primary_color}10`, color: brand.primary_color, borderColor: `${brand.primary_color}33` }}
         >
           {username.charAt(0).toUpperCase()}
         </div>
         <h3 className="font-semibold text-lg text-slate-800">{username}</h3>
         <span
           className="text-xs mt-1 uppercase tracking-wider font-semibold px-3 py-1 rounded-full"
-          style={{ color: brand.colors.primary, backgroundColor: `${brand.colors.primary}10` }}
+          style={{ color: brand.primary_color, backgroundColor: `${brand.primary_color}10` }}
         >
           {role}
         </span>
@@ -98,8 +99,8 @@ const Sidebar = ({ onClose }: { onClose?: () => void }) => {
                 : "text-slate-500 hover:text-slate-900 hover:bg-slate-50 border-l-4 border-transparent"
             )}
             style={isActive(item.path) ? {
-              background: `linear-gradient(to right, ${brand.colors.primary}1A, ${brand.colors.accent}1A)`,
-              borderLeftColor: brand.colors.accent,
+              background: `linear-gradient(to right, ${brand.primary_color}1A, ${brand.accent_color}1A)`,
+              borderLeftColor: brand.accent_color,
             } : undefined}
           >
             <item.icon
@@ -107,7 +108,7 @@ const Sidebar = ({ onClose }: { onClose?: () => void }) => {
                 "w-5 h-5 mr-3",
                 isActive(item.path) ? "" : "text-slate-400"
               )}
-              style={isActive(item.path) ? { color: brand.colors.primary } : undefined}
+              style={isActive(item.path) ? { color: brand.primary_color } : undefined}
             />
             {item.name}
           </Button>
@@ -119,13 +120,13 @@ const Sidebar = ({ onClose }: { onClose?: () => void }) => {
         <Button
           variant="ghost"
           onClick={() => {
-            navigate("/profile");
+            navigate("/settings");
             onClose?.();
           }}
           className="w-full justify-start text-slate-500 hover:text-slate-900 hover:bg-slate-50"
         >
           <UserIcon className="w-5 h-5 mr-3 text-slate-400" />
-          Profile
+          Settings
         </Button>
         <Button
           variant="ghost"

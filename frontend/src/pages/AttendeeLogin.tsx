@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { brand } from "@/config/brandConfig";
+import { useBrand } from "@/contexts/BrandContext";
 
 const Login = () => {
+  const { brand } = useBrand();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -81,7 +82,7 @@ const Login = () => {
     <div className="flex items-center justify-center p-4 w-full h-full">
       <Card className="w-full max-w-md border-border/50 shadow-xl">
         <CardHeader className="text-center pb-2">
-          <img src={brand.logo} alt={brand.fullName} className="w-14 h-14 mx-auto mb-2" />
+          <img src={brand.logo || "/logo.png"} alt={brand.name} className="w-14 h-14 mx-auto mb-2" />
           <CardTitle className="text-2xl">Sign In</CardTitle>
           <p className="text-sm text-muted-foreground">
             Login to access your events

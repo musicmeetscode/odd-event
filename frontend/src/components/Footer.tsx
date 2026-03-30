@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import { Shield, Copyright, ExternalLink } from "lucide-react";
-import { brand } from "@/config/brandConfig";
+import { useBrand } from "@/contexts/BrandContext";
 
 const Footer = () => {
+  const { brand } = useBrand();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -12,11 +13,11 @@ const Footer = () => {
           {/* Logo & Copyright */}
           <div className="flex flex-col items-center md:items-start space-y-2">
             <div className="flex items-center gap-2">
-              <img src={brand.logo} alt={brand.name} className="w-6 h-6" />
-              <span className="font-bold text-slate-800">{brand.fullName}</span>
+              <img src={brand.logo || "/logo.png"} alt={brand.name} className="w-6 h-6" />
+              <span className="font-bold text-slate-800">{brand.name} {brand.tagline}</span>
             </div>
             <p className="text-xs text-slate-400 font-medium flex items-center gap-1">
-              <Copyright className="w-3 h-3" /> {currentYear} {brand.company}. All rights reserved.
+              <Copyright className="w-3 h-3" /> {currentYear} {brand.company_name}. All rights reserved.
             </p>
           </div>
 
@@ -56,7 +57,7 @@ const Footer = () => {
 
         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
           <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-medium italic">
-            Empowering event builders worldwide • Powered by {brand.company}
+            Empowering event builders worldwide • Powered by {brand.company_name}
           </p>
         </div>
       </div>

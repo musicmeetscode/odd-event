@@ -13,11 +13,12 @@ export interface AuthResponse {
   role: UserRole;
   avatar_url?: string;
   must_reset_password?: boolean;
-  check_in_result?: any;
+  check_in_result?: Record<string, unknown>;
 }
 
 export interface User {
   id: number;
+  uuid: string;
   username: string;
   display_name: string;
   name: string;
@@ -27,7 +28,20 @@ export interface User {
   profession?: string;
   avatar_url?: string;
   is_flagged?: boolean;
-  is_google_connected?: boolean;
+  is_google_connected: boolean;
+}
+
+export interface BrandingConfiguration {
+    id: number;
+    name: string;
+    tagline: string;
+    logo: string | null;
+    primary_color: string;
+    accent_color: string;
+    company_name: string;
+    email: string;
+    website: string;
+    hashtag: string;
 }
 
 export interface Partner {
@@ -47,6 +61,7 @@ export interface Signatory {
 
 export interface Event {
   id: number;
+  uuid: string;
   title: string;
   description: string;
   event_type: EventType;
@@ -64,9 +79,7 @@ export interface Event {
   is_competition?: boolean;
   judging_criteria?: JudgingCriteria[];
   partners: Partner[];
-  signatory_1: Signatory | null;
-  signatory_2: Signatory | null;
-  signatory_3: Signatory | null;
+  signatories: Signatory[];
   is_recurring?: boolean;
   recurrence_type?: 'daily' | 'weekly' | 'monthly' | null;
   recurrence_end_date?: string | null;
@@ -159,7 +172,7 @@ export interface LeaderboardEntry {
 }
 
 export interface JudgeDashboardEvent {
-  event_id: number;
+  event_id: string | number;
   event_title: string;
   event_type: EventType;
   total_submissions: number;

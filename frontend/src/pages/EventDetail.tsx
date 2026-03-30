@@ -34,12 +34,13 @@ import { format } from "date-fns";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import type { Submission, Session, Team, Partner, Signatory, Event, JudgingCriteria } from "@/types/api";
+import { getMediaUrl } from "@/lib/utils";
 
 const TOTAL_SCORE_LIMIT = 100;
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const eventId = Number(id);
+  const eventId = id || "";
   const navigate = useNavigate();
   const { isAuthenticated, role } = useAuth();
   const queryClient = useQueryClient();
@@ -117,7 +118,7 @@ const EventDetail = () => {
 
   // ─── Mutations ───
   const updateBrandingMutation = useMutation({
-    mutationFn: (data: Partial<Event>) => eventsService.patchEvent(eventId, data),
+    mutationFn: (data: Partial<Event> | Record<string, any>) => eventsService.patchEvent(eventId, data as any),
     onSuccess: () => {
       toast.success("Branding updated");
       queryClient.invalidateQueries({ queryKey: ["event", eventId] });
@@ -166,12 +167,12 @@ const EventDetail = () => {
     onError: () => toast.error("Failed to create judge."),
   });
   const assignJudgeMutation = useMutation({
-    mutationFn: (judgeId: number) => adminService.assignJudge(eventId, judgeId),
+    mutationFn: (judgeId: string | number) => adminService.assignJudge(eventId, judgeId),
     onSuccess: () => { toast.success("Judge assigned!"); queryClient.invalidateQueries({ queryKey: ["judges", eventId] }); },
     onError: () => toast.error("Failed to assign judge."),
   });
   const removeJudgeMutation = useMutation({
-    mutationFn: (judgeId: number) => adminService.removeJudge(eventId, judgeId),
+    mutationFn: (judgeId: string | number) => adminService.removeJudge(eventId, judgeId),
     onSuccess: () => { toast.success("Judge removed."); queryClient.invalidateQueries({ queryKey: ["judges", eventId] }); },
   });
   const createCriteriaMutation = useMutation({
@@ -436,8 +437,6 @@ const EventDetail = () => {
           { label: "Sessions", value: sessionsCount, icon: Clock, color: "text-emerald-600 bg-emerald-50" },
           ...((event.is_competition || event.event_type === "competition" || event.event_type === "hackathon") ? [{ label: "Submissions", value: submissionsCount, icon: Trophy, color: "text-amber-600 bg-amber-50" }] : []),
           ...(event.allow_teams ? [{ label: "Teams", value: teamsCount, icon: UsersRound, color: "text-purple-600 bg-purple-50" }] : []),
-          ...(isAdmin && analytics ? [{ label: "Check-in Rate", value: `${analytics.check_in_rate}%`, icon: UserCheck, color: "text-green-600 bg-green-50" }] : []),
-          ...(isAdmin && analytics ? [{ label: "Avg Score", value: analytics.average_score || "–", icon: BarChart3, color: "text-orange-600 bg-orange-50" }] : []),
         ].map(stat => (
           <Card key={stat.label} className="border-border/40 hover:shadow-md transition-shadow">
             <CardContent className="pt-4 pb-3 flex items-center gap-3">
@@ -873,18 +872,18 @@ const EventDetail = () => {
             <Card className="border-border/40">
               <CardHeader className="pb-2"><CardTitle className="text-sm">Judges ({assignedJudges?.length || 0})</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                {(assignedJudges || []).map((j: { id: number; judge: number; judge_name: string }) => (
+                {(assignedJudges || []).map((j: { id: number; judge_id: string; judge_name: string }) => (
                   <div key={j.id} className="flex items-center justify-between text-sm">
                     <span>{j.judge_name}</span>
-                    <Button size="sm" variant="ghost" onClick={() => removeJudgeMutation.mutate(j.judge)}><Trash2 className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => removeJudgeMutation.mutate(j.judge_id)}><Trash2 className="h-3 w-3" /></Button>
                   </div>
                 ))}
                 {unassignedJudges.length > 0 && (
-                  <Select onValueChange={v => assignJudgeMutation.mutate(Number(v))}>
+                  <Select onValueChange={v => assignJudgeMutation.mutate(v)}>
                     <SelectTrigger><SelectValue placeholder="Assign existing judge..." /></SelectTrigger>
                     <SelectContent>
-                      {unassignedJudges.map((u: { id: number; display_name: string; username: string }) => (
-                        <SelectItem key={u.id} value={String(u.id)}>{u.display_name || u.username}</SelectItem>
+                      {unassignedJudges.map((u: { uuid: string; id: number; display_name: string; username: string }) => (
+                        <SelectItem key={u.uuid || u.id} value={String(u.uuid || u.id)}>{u.display_name || u.username}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -935,54 +934,107 @@ const EventDetail = () => {
                         </div>
                         <CardDescription className="text-[10px]">Configure partners and signatories for this event's certificates.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4 pt-2">
+                    <CardContent className="space-y-6 pt-2">
                         {/* Partners */}
-                        <div className="space-y-2">
-                            <Label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Event Partners</Label>
-                            <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100 max-h-32 overflow-y-auto">
+                        <div className="space-y-3">
+                            <Label className="text-[11px] uppercase font-bold text-slate-500 tracking-wider flex items-center justify-between">
+                                Event Partners
+                                {event?.partners?.length > 0 && <Badge variant="secondary" className="px-1.5 h-4 text-[9px]">{event.partners.length} selected</Badge>}
+                            </Label>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                                 {partners?.map((p: Partner) => (
-                                    <div key={p.id} className="flex items-center space-x-2">
-                                        <Checkbox 
-                                            id={`m-partner-${p.id}`} 
-                                            checked={event?.partners?.some((ep: any) => ep.id === p.id)} 
-                                            onCheckedChange={() => {
-                                                const current = event?.partners?.map((ep: any) => ep.id) || [];
-                                                const next = current.includes(p.id) ? current.filter((id: number) => id !== p.id) : [...current, p.id];
-                                                updateBrandingMutation.mutate({ partners: next });
-                                            }}
-                                        />
-                                        <label htmlFor={`m-partner-${p.id}`} className="text-[11px] font-medium leading-none cursor-pointer truncate">
-                                            {p.name}
-                                        </label>
+                                    <div 
+                                        key={p.id} 
+                                        onClick={() => {
+                                            const current = event?.partners?.map((ep: Partner) => ep.id) || [];
+                                            const next = current.includes(p.id) ? current.filter((id: number) => id !== p.id) : [...current, p.id];
+                                            updateBrandingMutation.mutate({ partner_ids: next });
+                                        }}
+                                        className={`relative group cursor-pointer border rounded-xl p-2 transition-all hover:shadow-sm ${
+                                            event?.partners?.some((ep: Partner) => ep.id === p.id) 
+                                            ? "border-primary bg-primary/5 ring-1 ring-primary/20" 
+                                            : "border-slate-100 bg-white hover:border-slate-300"
+                                        }`}
+                                    >
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="w-10 h-10 rounded-lg bg-white border border-slate-100 flex items-center justify-center p-1 overflow-hidden">
+                                                <img src={getMediaUrl(p.logo)} alt={p.name} className="max-w-full max-h-full object-contain" />
+                                            </div>
+                                            <span className="text-[10px] font-medium text-slate-700 text-center line-clamp-1">{p.name}</span>
+                                        </div>
+                                        <div className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                                            event?.partners?.some((ep: Partner) => ep.id === p.id) 
+                                            ? "bg-primary border-primary text-white" 
+                                            : "bg-white border-slate-200"
+                                        }`}>
+                                            {event?.partners?.some((ep: Partner) => ep.id === p.id) && <Check className="w-2.5 h-2.5" />}
+                                        </div>
                                     </div>
                                 ))}
-                                {(!partners || partners.length === 0) && <p className="text-[10px] text-muted-foreground italic col-span-2">No partners found.</p>}
+                                {(!partners || partners.length === 0) && (
+                                    <div className="col-span-full py-6 text-center border border-dashed rounded-xl bg-slate-50">
+                                        <p className="text-[11px] text-muted-foreground italic">No partners available. Add some in Asset Management.</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
                         {/* Signatories */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            {[1, 2, 3].map((num) => {
-                                const sigKey = `signatory_${num}` as keyof Event;
-                                const currentSigId = (event?.[sigKey] as any)?.id ? String((event?.[sigKey] as any).id) : "none";
-                                return (
-                                    <div key={num} className="space-y-1.5">
-                                        <Label className="text-[10px] text-slate-500">Signatory {num}</Label>
-                                        <Select 
-                                            value={currentSigId} 
-                                            onValueChange={(val) => updateBrandingMutation.mutate({ [sigKey]: val === "none" ? null : parseInt(val) })}
-                                        >
-                                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">None</SelectItem>
-                                                {signatories?.map((s: Signatory) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
+                        <div className="space-y-3">
+                            <Label className="text-[11px] uppercase font-bold text-slate-500 tracking-wider flex items-center justify-between">
+                                Signatories
+                                {event?.signatories?.length > 0 && <Badge variant="secondary" className="px-1.5 h-4 text-[9px]">{event.signatories.length} selected</Badge>}
+                            </Label>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                                {signatories?.map((s: Signatory) => (
+                                    <div 
+                                        key={s.id} 
+                                        onClick={() => {
+                                            const current = event?.signatories?.map((es: Signatory) => es.id) || [];
+                                            const next = current.includes(s.id) ? current.filter((id: number) => id !== s.id) : [...current, s.id];
+                                            updateBrandingMutation.mutate({ signatory_ids: next });
+                                        }}
+                                        className={`relative group cursor-pointer border rounded-xl p-2 transition-all hover:shadow-sm ${
+                                            event?.signatories?.some((es: Signatory) => es.id === s.id) 
+                                            ? "border-primary bg-primary/5 ring-1 ring-primary/20" 
+                                            : "border-slate-100 bg-white hover:border-slate-300"
+                                        }`}
+                                    >
+                                        <div className="flex flex-col items-center gap-1.5 pt-1">
+                                            <div className="w-full h-8 flex items-center justify-center pointer-events-none">
+                                                {s.signature ? (
+                                                    <img src={getMediaUrl(s.signature)} alt="Signature" className="max-h-full object-contain opacity-70 group-hover:opacity-100 transition-opacity" />
+                                                ) : (
+                                                    <div className="text-[8px] italic text-slate-300 uppercase tracking-tighter">No signature</div>
+                                                )}
+                                            </div>
+                                            <div className="text-center w-full">
+                                                <div className="text-[10px] font-bold text-slate-800 truncate">{s.name}</div>
+                                                <div className="text-[8px] text-slate-500 truncate">{s.title}</div>
+                                            </div>
+                                        </div>
+                                        <div className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                                            event?.signatories?.some((es: Signatory) => es.id === s.id) 
+                                            ? "bg-primary border-primary text-white" 
+                                            : "bg-white border-slate-200"
+                                        }`}>
+                                            {event?.signatories?.some((es: Signatory) => es.id === s.id) && <Check className="w-2.5 h-2.5" />}
+                                        </div>
                                     </div>
-                                );
-                            })}
+                                ))}
+                                {(!signatories || signatories.length === 0) && (
+                                    <div className="col-span-full py-6 text-center border border-dashed rounded-xl bg-slate-50">
+                                        <p className="text-[11px] text-muted-foreground italic">No signatories available. Add some in Asset Management.</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        {updateBrandingMutation.isPending && <p className="text-[10px] text-primary animate-pulse">Syncing branding...</p>}
+                        {updateBrandingMutation.isPending && (
+                            <div className="flex items-center gap-2 px-1">
+                                <Loader2 className="w-3 h-3 text-primary animate-spin" />
+                                <p className="text-[10px] text-primary font-medium">Syncing changes...</p>
+                            </div>
+                        )}
                     </CardContent>
                   </Card>
 

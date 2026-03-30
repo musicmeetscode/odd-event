@@ -12,7 +12,7 @@ import { toast } from "sonner";
 
 const SubmissionForm = () => {
   const { id } = useParams<{ id: string }>();
-  const eventId = Number(id);
+  const eventId = id || "";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 

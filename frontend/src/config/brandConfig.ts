@@ -39,9 +39,13 @@ export const brand = {
 
   /** Theme colors used across the UI */
   colors: {
-    /** Primary brand color (sidebar accents, active states) */
+    /** Primary brand color (sidebar accents, active states) - Default: Blue */
     primary: import.meta.env.VITE_BRAND_COLOR_PRIMARY || "#2962FF",
-    /** Secondary/accent color (highlights, CTAs) */
+    /** Secondary/accent color (highlights, CTAs) - Default: Orange */
     accent: import.meta.env.VITE_BRAND_COLOR_ACCENT || "#F58220",
+    /** Surface colors for cards and sections */
+    surface: import.meta.env.VITE_BRAND_COLOR_SURFACE || "#FFFFFF",
+    /** Border colors for UI elements */
+    border: import.meta.env.VITE_BRAND_COLOR_BORDER || "#E2E8F0",
   },
 } as const;

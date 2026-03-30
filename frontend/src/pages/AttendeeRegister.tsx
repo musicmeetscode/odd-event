@@ -7,14 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { brand } from "@/config/brandConfig";
+import { useBrand } from "@/contexts/BrandContext";
 
 const toTitleCase = (str: string) => {
   return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 };
 
 const AttendeeRegister = () => {
+  const { brand } = useBrand();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -63,7 +63,7 @@ const AttendeeRegister = () => {
     <div className="flex items-center justify-center p-4 w-full h-full">
       <Card className="w-full max-w-md border-border/50 shadow-xl">
         <CardHeader className="text-center pb-2">
-          <img src={brand.logo} alt={brand.fullName} className="w-14 h-14 mx-auto mb-2" />
+          <img src={brand.logo || "/logo.png"} alt={brand.name} className="w-14 h-14 mx-auto mb-2" />
           <CardTitle className="text-2xl">Create Account</CardTitle>
           <p className="text-sm text-muted-foreground">
             Join to discover and attend events

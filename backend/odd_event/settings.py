@@ -28,7 +28,7 @@ AUTH_USER_MODEL = 'events.User'
 
 INSTALLED_APPS = [
     'daphne',
-    # 'jazzmin',
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -147,18 +147,4 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-JAZZMIN_SETTINGS = {
-    "site_title": "Blue Ox Events",
-    "user_avatar": None,
-    "show_ui_builder": True,
-    "site_brand": "Blue Ox Events Admin",
-    "hide_apps": ["auth", "authtoken"],
-    "icons": {
-        "events.User": "fas fa-user",
-        "events.Event": "fas fa-calendar-alt",
-        "events.Submission": "fas fa-project-diagram",
-        "events.Score": "fas fa-star",
-    }
-}
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
