@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Loader2, Award, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import html2canvas from "html2canvas-pro";
+import { jsPDF } from "jspdf";
 import { useBrand } from "@/contexts/BrandContext";
 import { getMediaUrl } from "@/lib/utils";
 
@@ -52,12 +53,16 @@ const Certificate = () => {
             });
             
             const url = canvas.toDataURL("image/png");
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `Certificate_${cert?.attendee_name?.replace(/\s+/g, '_') || "Achievement"}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            
+            // Create PDF
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'px',
+                format: [1000, 700]
+            });
+            
+            pdf.addImage(url, 'PNG', 0, 0, 1000, 700);
+            pdf.save(`Certificate_${cert?.attendee_name?.replace(/\s+/g, '_') || "Achievement"}.pdf`);
             setIsGenerating(false);
             toast.success("Certificate downloaded! 🎉");
         } catch (err) {
