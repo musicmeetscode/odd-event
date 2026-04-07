@@ -21,11 +21,11 @@ from rest_framework.decorators import action
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-from .models import (
-    User, Event, EventRegistration, Session, Question,
+from .models import (    User, Event, EventRegistration, Session, Question,
+
     Submission, JudgingCriteria, JudgeAssignment, Score,
     Team, TeamMember, SpeakerSession, Partner, Signatory,
-    BrandingConfiguration,
+    BrandingConfiguration, BuddyGroup,
 )
 from .serializers import (
     RegistrationSerializer, UserSerializer,
@@ -36,7 +36,7 @@ from .serializers import (
     LeaderboardEntrySerializer, JudgeAssignmentSerializer,
     TeamSerializer, TeamMemberSerializer,
     PartnerSerializer, SignatorySerializer,
-    BrandingSerializer,
+    BrandingSerializer, BuddyGroupSerializer,
 )
 from .permissions import IsAdminOrReadOnly, IsJudge, IsAdminUser, IsJudgeOrAdmin
 from .google_auth import verify_google_token
@@ -375,6 +375,83 @@ class EventViewSet(viewsets.ModelViewSet):
         event.certificates_released = False
         event.save()
         return Response({'detail': 'Certificates unreleased.'})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def generate_buddy_groups(self, request, pk=None):
+        """Generates buddy groups for checked-in attendees with funny catchy names."""
+        event = self.get_object()
+        registrations = event.registrations.filter(status='checked_in', buddy_group__isnull=True)
+        
+        if not registrations.exists():
+            return Response({'detail': 'No checked-in attendees without groups found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        import random
+        # Funny Catchy Names
+        ADJECTIVES = ['Quantum', 'Sassy', 'Wobbly', 'Electric', 'Stealthy', 'Caffeinated', 'Dancing', 'Brilliant', 'Infinite', 'Grumpy', 'Funky', 'Zesty', 'Groovy', 'Sonic', 'Spicy', 'Cyber', 'Neon', 'Golden', 'Epic', 'Wild']
+        NOUNS = ['Narwhals', 'Pixels', 'Builders', 'Pioneers', 'Capybaras', 'Ninjas', 'Coders', 'Architects', 'Unicorns', 'Wizards', 'Hobbits', 'Penguins', 'Dragons', 'Martians', 'Bunnies', 'Hackers', 'Sharks', 'Wolves', 'Tigers', 'Titans']
+
+        reg_list = list(registrations)
+        random.shuffle(reg_list)
+
+        group_size = event.buddy_group_size or 5
+        num_groups = (len(reg_list) + group_size - 1) // group_size
+
+        created_count = 0
+        
+        for i in range(num_groups):
+            # Generate funny name
+            adj = random.choice(ADJECTIVES)
+            noun = random.choice(NOUNS)
+            group_name = f"{adj} {noun}"
+            
+            # Simple collision avoidance
+            if event.buddy_groups.filter(name=group_name).exists():
+                group_name = f"{group_name} {random.randint(1, 99)}"
+
+            group = BuddyGroup.objects.create(event=event, name=group_name)
+            
+            chunk = reg_list[i*group_size : (i+1)*group_size]
+            for reg in chunk:
+                reg.buddy_group = group
+                reg.save()
+            
+            created_count += 1
+
+        return Response({
+            'detail': f'Created {created_count} buddy groups with catchy names!',
+            'groups_created': created_count
+        })
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def clear_buddy_groups(self, request, pk=None):
+        event = self.get_object()
+        event.buddy_groups.all().delete()
+        event.registrations.update(buddy_group=None)
+        return Response({'detail': 'All buddy groups cleared for this event.'})
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser])
+    def get_buddy_groups(self, request, pk=None):
+        event = self.get_object()
+        groups = event.buddy_groups.all()
+        data = []
+        for g in groups:
+            members = g.members.all()
+            data.append({
+                'id': g.id,
+                'name': g.name,
+                'created_at': g.created_at,
+                'members': [
+                    {
+                        'id': m.user.id, 
+                        'name': m.user.display_name or m.user.username, 
+                        'profession': m.user.profession,
+                        'phone': m.user.phone,
+                        'avatar_url': m.user.avatar_url
+                    }
+                    for m in members
+                ]
+            })
+        return Response(data)
 
 
 class EventRegistrationView(APIView):

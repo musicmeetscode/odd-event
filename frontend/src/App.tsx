@@ -31,6 +31,7 @@ import ProfileCard from "./pages/ProfileCard";
 import Privacy from "./pages/Privacy";
 import PublicSubmission from "./pages/PublicSubmission";
 import AdminAssetManagement from "./pages/AdminAssetManagement";
+import ManageBuddyGroups from "./pages/ManageBuddyGroups";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -86,6 +87,7 @@ const App = () => (
                 <Route element={<ProtectedRoute requireRole="admin" />}>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/users" element={<Users />} />
+                  <Route path="/events/:id/buddy-groups" element={<ManageBuddyGroups />} />
                 </Route>
               </Route>
             </Route>

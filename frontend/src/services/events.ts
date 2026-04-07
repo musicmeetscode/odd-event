@@ -1,5 +1,5 @@
 import apiClient from "./api";
-import type { Event, EventRegistration, Session, Question, Submission, LeaderboardEntry } from "@/types/api";
+import type { Event, EventRegistration, Session, Question, Submission, LeaderboardEntry, BuddyGroup } from "@/types/api";
 
 export const eventsService = {
   // Events
@@ -201,5 +201,21 @@ export const eventsService = {
   },
   deleteSignatory: async (id: number) => {
     await apiClient.delete(`/signatories/${id}/`);
+  },
+
+  // Buddy Groups
+  getBuddyGroups: async (eventId: string | number) => {
+    const response = await apiClient.get<BuddyGroup[]>(`/events/${eventId}/get_buddy_groups/`);
+    return response.data;
+  },
+
+  generateBuddyGroups: async (eventId: string | number) => {
+    const response = await apiClient.post<{ detail: string; groups_created: number }>(`/events/${eventId}/generate_buddy_groups/`);
+    return response.data;
+  },
+
+  clearBuddyGroups: async (eventId: string | number) => {
+    const response = await apiClient.post<{ detail: string }>(`/events/${eventId}/clear_buddy_groups/`);
+    return response.data;
   },
 };

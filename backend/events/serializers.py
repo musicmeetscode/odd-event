@@ -1,10 +1,9 @@
-from .models import BrandingConfiguration
-from rest_framework import serializers
 from django.db.models import Sum, F
+from rest_framework import serializers
 from .models import (
     User, Event, EventRegistration, Session, SpeakerSession,
     Question, Answer, Submission, JudgingCriteria, JudgeAssignment, Score,
-    Team, TeamMember, Partner, Signatory,
+    Team, TeamMember, Partner, Signatory, BuddyGroup, BrandingConfiguration,
 )
 
 
@@ -44,6 +43,27 @@ class SignatorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Signatory
         fields = ['id', 'name', 'title', 'organization', 'signature']
+
+
+class BuddyGroupSerializer(serializers.ModelSerializer):
+    members = serializers.SerializerMethodField()
+
+    class Meta:
+        model = BuddyGroup
+        fields = ['id', 'event', 'name', 'created_at', 'members']
+        read_only_fields = ['id', 'created_at']
+
+    def get_members(self, obj):
+        return [
+            {
+                'id': m.user.id,
+                'name': m.user.display_name or m.user.username,
+                'profession': m.user.profession,
+                'phone': m.user.phone,
+                'avatar_url': m.user.avatar_url
+            }
+            for m in obj.members.all()
+        ]
 
 
 class BrandingSerializer(serializers.ModelSerializer):
@@ -119,9 +139,32 @@ class EventDetailSerializer(serializers.ModelSerializer):
             'is_recurring', 'recurrence_type', 'recurrence_end_date', 
             'recurrence_day_of_week', 'recurrence_day_of_month', 'recurrence_group_id', 
             'certificates_released', 'partners', 'signatories',
-            'partner_ids', 'signatory_ids',
+            'partner_ids', 'signatory_ids', 'buddy_group_size',
+            'buddy_group',
         ]
         read_only_fields = ['created_by', 'created_at', 'updated_at', 'uuid']
+
+    buddy_group = serializers.SerializerMethodField()
+
+    def get_buddy_group(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+            
+        # Get registration for the current user to find their assigned group
+        reg = obj.registrations.filter(user=request.user).first()
+        group = None
+        
+        if reg and reg.buddy_group:
+            group = reg.buddy_group
+        elif request.user.is_staff or request.user.role == 'admin':
+            # For admins, return the first group if they aren't in one, 
+            # so they can see the group UI layout in the detail page
+            group = obj.buddy_groups.first()
+
+        if group:
+            return BuddyGroupSerializer(group).data
+        return None
 
     def get_is_registered(self, obj):
         request = self.context.get('request')
@@ -143,7 +186,7 @@ class EventRegistrationSerializer(serializers.ModelSerializer):
         model = EventRegistration
         fields = [
             'id', 'event', 'user', 'name', 'username', 'email', 'profession', 
-            'is_flagged', 'registered_at', 'status'
+            'is_flagged', 'registered_at', 'status', 'buddy_group'
         ]
         read_only_fields = ['id', 'user', 'is_flagged', 'registered_at']
 

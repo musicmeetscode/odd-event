@@ -47,6 +47,7 @@ const AdminEventForm = () => {
   const [maxAttendees, setMaxAttendees] = useState("");
   const [allowTeams, setAllowTeams] = useState(false);
   const [maxTeamSize, setMaxTeamSize] = useState("5");
+  const [buddyGroupSize, setBuddyGroupSize] = useState("5");
   
   // Recurrence
   const [isRecurring, setIsRecurring] = useState(false);
@@ -99,6 +100,7 @@ const AdminEventForm = () => {
       setSig1(event.signatory_1?.id ? String(event.signatory_1.id) : "none");
       setSig2(event.signatory_2?.id ? String(event.signatory_2.id) : "none");
       setSig3(event.signatory_3?.id ? String(event.signatory_3.id) : "none");
+      setBuddyGroupSize(event.buddy_group_size ? String(event.buddy_group_size) : "5");
     }
   }, [event]);
 
@@ -124,6 +126,7 @@ const AdminEventForm = () => {
         signatory_1: sig1 === "none" ? null : parseInt(sig1),
         signatory_2: sig2 === "none" ? null : parseInt(sig2),
         signatory_3: sig3 === "none" ? null : parseInt(sig3),
+        buddy_group_size: parseInt(buddyGroupSize) || 5,
       };
 
       if (isEdit) {
@@ -363,6 +366,32 @@ const AdminEventForm = () => {
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Networking / Buddy Groups */}
+              <div className="pt-6 border-t border-border/50">
+                <div className="flex items-center gap-2 mb-4">
+                  <Settings2 className="h-5 w-5 text-primary" />
+                  <Label className="text-base font-semibold">Networking Settings</Label>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="buddyGroupSize">Buddy Group Size</Label>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      The number of attendees to group together during buddy group generation.
+                    </p>
+                    <Input
+                      id="buddyGroupSize"
+                      type="number"
+                      min="2"
+                      max="50"
+                      value={buddyGroupSize}
+                      onChange={(e) => setBuddyGroupSize(e.target.value)}
+                      className="max-w-[120px]"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Recurrence Settings */}

@@ -148,6 +148,8 @@ class Event(models.Model):
     signatory_1 = models.ForeignKey(Signatory, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     signatory_2 = models.ForeignKey(Signatory, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     signatory_3 = models.ForeignKey(Signatory, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    
+    buddy_group_size = models.PositiveIntegerField(default=5, help_text="Number of people per buddy group")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -178,6 +180,7 @@ class EventRegistration(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='event_registrations')
     registered_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='registered')
+    buddy_group = models.ForeignKey('BuddyGroup', on_delete=models.SET_NULL, null=True, blank=True, related_name='members')
 
     class Meta:
         unique_together = ['event', 'user']
@@ -185,6 +188,15 @@ class EventRegistration(models.Model):
 
     def __str__(self):
         return f"{self.user} → {self.event.title}"
+
+
+class BuddyGroup(models.Model):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='buddy_groups')
+    name = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name} - {self.event.title}"
 
 
 # ─── Teams ──────────────────────────────────────────────────────
