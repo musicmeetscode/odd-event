@@ -93,6 +93,7 @@ export interface Event {
   buddy_group_size: number;
   buddy_group?: BuddyGroup | null;
   is_registered: boolean;
+  registration_status?: 'registered' | 'checked_in' | 'cancelled' | null;
   is_competition?: boolean;
   judging_criteria?: JudgingCriteria[];
   partners: Partner[];

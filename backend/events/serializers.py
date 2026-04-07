@@ -85,6 +85,7 @@ class EventListSerializer(serializers.ModelSerializer):
     attendee_count = serializers.IntegerField(read_only=True)
     created_by_name = serializers.CharField(source='created_by.display_name', read_only=True)
     is_registered = serializers.SerializerMethodField()
+    registration_status = serializers.SerializerMethodField()
     partners = PartnerSerializer(many=True, read_only=True)
 
     class Meta:
@@ -97,8 +98,16 @@ class EventListSerializer(serializers.ModelSerializer):
             'is_competition', 'created_at', 'certificates_released',
             'is_recurring', 'recurrence_type', 'recurrence_end_date',
             'recurrence_day_of_week', 'recurrence_day_of_month', 'recurrence_group_id',
-            'partners',
+            'partners', 'registration_status',
         ]
+
+    def get_registration_status(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            reg = obj.registrations.filter(user=request.user).first()
+            if reg:
+                return reg.status
+        return None
 
     def get_is_registered(self, obj):
         request = self.context.get('request')
@@ -114,6 +123,7 @@ class EventDetailSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.display_name', read_only=True)
     judging_criteria = JudgingCriteriaSerializer(many=True, read_only=True)
     is_registered = serializers.SerializerMethodField()
+    registration_status = serializers.SerializerMethodField()
     is_competition = serializers.BooleanField(read_only=True)
     
     partners = PartnerSerializer(many=True, read_only=True)
@@ -140,7 +150,7 @@ class EventDetailSerializer(serializers.ModelSerializer):
             'recurrence_day_of_week', 'recurrence_day_of_month', 'recurrence_group_id', 
             'certificates_released', 'partners', 'signatories',
             'partner_ids', 'signatory_ids', 'buddy_group_size',
-            'buddy_group',
+            'buddy_group', 'registration_status',
         ]
         read_only_fields = ['created_by', 'created_at', 'updated_at', 'uuid']
 
@@ -164,6 +174,14 @@ class EventDetailSerializer(serializers.ModelSerializer):
 
         if group:
             return BuddyGroupSerializer(group).data
+        return None
+
+    def get_registration_status(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            reg = obj.registrations.filter(user=request.user).first()
+            if reg:
+                return reg.status
         return None
 
     def get_is_registered(self, obj):

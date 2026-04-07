@@ -54,6 +54,22 @@ const EventList = () => {
       });
   }, [myEvents]);
 
+  const filteredAttendedEvents = useMemo(() => {
+    if (!myEvents) return [];
+    const now = new Date();
+    const seenGroups = new Set<string>();
+    
+    return myEvents
+      .filter(event => new Date(event.end_date) < now)
+      .filter(event => {
+        if (event.recurrence_group_id) {
+          if (seenGroups.has(event.recurrence_group_id)) return false;
+          seenGroups.add(event.recurrence_group_id);
+        }
+        return true;
+      });
+  }, [myEvents]);
+
   return (
     <div className="min-h-screen bg-background">
       <main className="max-w-5xl mx-auto px-4 py-8">
@@ -70,6 +86,7 @@ const EventList = () => {
           <TabsList className="mb-6">
             <TabsTrigger value="all">All Events</TabsTrigger>
             <TabsTrigger value="mine">My Events</TabsTrigger>
+            <TabsTrigger value="attended">Attended</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all">
@@ -105,7 +122,22 @@ const EventList = () => {
               </div>
             ) : (
               <div className="text-center py-20 text-muted-foreground">
-                <p>You haven't registered for any events yet.</p>
+                <p>You haven't registered for any upcoming events yet.</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="attended">
+            {filteredAttendedEvents && filteredAttendedEvents.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredAttendedEvents.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20 text-muted-foreground">
+                <CalendarDays className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p>No past events found in your history.</p>
               </div>
             )}
           </TabsContent>
