@@ -27,14 +27,16 @@ import {
   Loader2, QrCode, Link2, Plus, Trash2, BarChart3, UserCheck,
   UserPlus, Edit, Download, Clock, UserCircle, UsersRound,
   Check, X, Pencil, Search, Ban, LogIn, MoreHorizontal, Eye,
-  Menu,
+  Menu, Users2, Phone,
   Award, Settings2, RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
-import type { Submission, Session, Team, Partner, Signatory, Event, JudgingCriteria } from "@/types/api";
+import type { Submission, Session, Team, Partner, Signatory, Event, JudgingCriteria, Score } from "@/types/api";
 import { getMediaUrl } from "@/lib/utils";
+import { brand } from "@/config/brandConfig";
+import { Avatar, AvatarImage, AvatarFallback } from "@radix-ui/react-avatar";
 
 const TOTAL_SCORE_LIMIT = 100;
 
@@ -84,6 +86,7 @@ const EventDetail = () => {
   const { data: attendees } = useQuery({
     queryKey: ["attendees", eventId],
     queryFn: () => adminService.listAttendees(eventId),
+    enabled: isAdmin,
   });
   const { data: partners } = useQuery({
     queryKey: ["partners"],
@@ -113,6 +116,12 @@ const EventDetail = () => {
   const { data: allJudgeUsers } = useQuery({
     queryKey: ["users", "judge"],
     queryFn: () => adminService.listUsers("judge"),
+    enabled: isAdmin,
+  });
+
+  const { data: allBuddyGroups } = useQuery({
+    queryKey: ["buddy-groups", eventId],
+    queryFn: () => eventsService.getBuddyGroups(eventId),
     enabled: isAdmin,
   });
 
@@ -289,7 +298,7 @@ const EventDetail = () => {
     return matchesSearch && matchesFilter;
   });
   const attendeeCounts = {
-    all: (attendees || []).length,
+    all: isAdmin ? (attendees || []).length : (event?.attendee_count || 0),
     registered: (attendees || []).filter((a: { status: string }) => a.status === "registered").length,
     checked_in: (attendees || []).filter((a: { status: string }) => a.status === "checked_in").length,
     cancelled: (attendees || []).filter((a: { status: string }) => a.status === "cancelled").length,
@@ -344,6 +353,9 @@ const EventDetail = () => {
                     <>
                       <DropdownMenuItem onClick={() => navigate(`/events/${eventId}/edit`)} className="cursor-pointer">
                         <Edit className="h-4 w-4 mr-2" />Edit Event
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate(`/events/${eventId}/buddy-groups`)} className="cursor-pointer">
+                        <Users className="h-4 w-4 mr-2 text-primary" />Manage Buddy Groups
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => navigate(`/events/${eventId}/certificate`)} className="cursor-pointer">
                         <Eye className="h-4 w-4 mr-2 text-indigo-500" />Preview Certificate
@@ -417,6 +429,11 @@ const EventDetail = () => {
           {!isAdmin && event.is_registered && (
             <div className="mt-4 flex flex-wrap gap-2">
               <Badge className="bg-white/20 text-white border-0 text-sm py-1 px-3">✓ You're registered</Badge>
+              {event.buddy_group && (
+                <Badge className="bg-amber-400 text-slate-900 border-0 text-sm py-1 px-3 font-bold animate-pulse">
+                  🤝 Buddy Group: {event.buddy_group.name}
+                </Badge>
+              )}
               {event.certificates_released && (
                 <Button size="sm" variant="secondary" onClick={() => navigate(`/events/${eventId}/certificate`)} className="bg-white text-slate-900 border-0">
                   <Download className="h-4 w-4 mr-1.5" />Download Certificate
@@ -457,32 +474,46 @@ const EventDetail = () => {
       <div className="sticky top-14 z-20 bg-background/95 backdrop-blur-sm pb-4 -mx-4 px-4 pt-1">
         <Tabs defaultValue="overview">
           <TabsList className="flex flex-wrap h-auto gap-1.5 bg-muted/50 p-1 rounded-xl border border-border/40">
-            <TabsTrigger value="overview" className="rounded-lg text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5">
+            <TabsTrigger value="overview" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
               <Calendar className="h-3.5 w-3.5" />Overview
             </TabsTrigger>
-            <TabsTrigger value="sessions" className="rounded-lg text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5">
+            <TabsTrigger value="sessions" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
               <Clock className="h-3.5 w-3.5" />Sessions
-              {sessionsCount > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-mono">{sessionsCount}</Badge>}
+              {sessionsCount > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-mono bg-white/20 text-white border-0">{sessionsCount}</Badge>}
             </TabsTrigger>
             {(event.is_competition || event.event_type === "competition" || event.event_type === "hackathon") && (
-              <TabsTrigger value="submissions" className="rounded-lg text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5">
+              <TabsTrigger value="submissions" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
                 <Trophy className="h-3.5 w-3.5" />Submissions
-                {submissionsCount > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-mono">{submissionsCount}</Badge>}
+                {submissionsCount > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-mono bg-white/20 text-white border-0">{submissionsCount}</Badge>}
+              </TabsTrigger>
+            )}
+            {(event.is_registered || isAdmin) && (
+              <TabsTrigger value="networking" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
+                <Users2 className="h-3.5 w-3.5" />Networking
+                {isAdmin ? (
+                  allBuddyGroups && allBuddyGroups.length > 0 && (
+                    <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-mono bg-white/20 text-white border-0">{allBuddyGroups.length}</Badge>
+                  )
+                ) : (
+                  event.buddy_group && (
+                    <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-mono bg-white/20 text-white border-0">{event.buddy_group.members?.length || 0}</Badge>
+                  )
+                )}
               </TabsTrigger>
             )}
             {event.allow_teams && (
-              <TabsTrigger value="teams" className="rounded-lg text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5">
+              <TabsTrigger value="teams" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
                 <UsersRound className="h-3.5 w-3.5" />Teams
-                {teamsCount > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-mono">{teamsCount}</Badge>}
+                {teamsCount > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-mono bg-white/20 text-white border-0">{teamsCount}</Badge>}
               </TabsTrigger>
             )}
             {isAdmin && (
-              <TabsTrigger value="manage" className="rounded-lg text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5">
+              <TabsTrigger value="manage" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
                 <Edit className="h-3.5 w-3.5" />Manage
               </TabsTrigger>
             )}
             {isAdmin && (
-              <TabsTrigger value="stats" className="rounded-lg text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5">
+              <TabsTrigger value="stats" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
                 <BarChart3 className="h-3.5 w-3.5" />Stats
               </TabsTrigger>
             )}
@@ -735,7 +766,8 @@ const EventDetail = () => {
               )}
             </Card>
           )}
-          {/* #6: Session cards with speaker avatars and timeline connector */}
+
+          {/* Sessions List */}
           {sessionsCount > 0 ? (
             <div className="relative">
               <div className="absolute left-[15px] top-3 bottom-3 w-px bg-border" />
@@ -779,6 +811,131 @@ const EventDetail = () => {
             </div>
           ) : <p className="text-muted-foreground text-center py-8">No sessions yet.</p>}
         </TabsContent>
+
+        {/* ═══════════ Networking Tab (Independent) ═══════════ */}
+        {(event.is_registered || isAdmin) && (
+          <TabsContent value="networking" className="space-y-6 mt-6 pb-24">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">
+                  {isAdmin ? "Buddy Groups Management" : (event.buddy_group ? event.buddy_group.name : "Networking Groups")}
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  {isAdmin 
+                    ? `Manage ${allBuddyGroups?.length || 0} networking groups for attendees.`
+                    : (event.buddy_group 
+                        ? "Get to know your networking group and connect!" 
+                        : "Buddy groups are being generated. Check back soon to see your group!")}
+                </p>
+              </div>
+              {isAdmin && (
+                <Button variant="outline" size="sm" onClick={() => navigate(`/events/${eventId}/buddy-groups`)} className="gap-2">
+                  <RefreshCw className="h-4 w-4" /> Go to Management
+                </Button>
+              )}
+            </div>
+
+            {isAdmin ? (
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  {allBuddyGroups?.map((group) => (
+                    <Card key={group.id} className="overflow-hidden border-border/40 bg-card/5 backdrop-blur-sm">
+                      <CardHeader className="bg-secondary/10 py-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm font-bold">{group.name}</CardTitle>
+                          <Badge variant="outline" className="text-[10px]">{group.members?.length || 0} Members</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-3 pb-3">
+                        <div className="flex -space-x-2">
+                          {group.members?.slice(0, 5).map((member, i) => (
+                            <Avatar key={member.id} className="h-8 w-8 border-2 border-background shadow-sm">
+                              <AvatarImage src={member.avatar_url} />
+                              <AvatarFallback className={`bg-gradient-to-br ${theme.gradient} text-white font-bold text-[10px] flex items-center justify-center rounded-full w-full h-full`}>
+                                {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                          ))}
+                          {group.members && group.members.length > 5 && (
+                            <div className="w-8 h-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[9px] text-muted-foreground">+{group.members.length - 5}</div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {(!allBuddyGroups || allBuddyGroups.length === 0) && (
+                    <div className="col-span-full text-center py-12 border-2 border-dashed rounded-2xl bg-muted/20">
+                      <Users2 className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                      <p className="text-muted-foreground">No buddy groups generated yet.</p>
+                      <Button variant="link" size="sm" onClick={() => navigate(`/events/${eventId}/buddy-groups`)}>Manage Buddy Groups</Button>
+                    </div>
+                  )}
+               </div>
+            ) : event.buddy_group ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {event.buddy_group.members?.map((member) => (
+                  <Card key={member.id} className="overflow-hidden border-border/40 hover:border-primary/30 transition-all hover:shadow-md group bg-card/10 backdrop-blur-sm">
+                    <CardHeader className="bg-secondary/5 pb-3 border-b border-border/5">
+                      <div className="flex items-center gap-4">
+                        <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
+                          <AvatarImage src={member.avatar_url} />
+                          <AvatarFallback className={`bg-gradient-to-br ${theme.gradient} text-white font-bold flex items-center justify-center rounded-full text-sm w-full h-full`}>
+                            {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg truncate group-hover:text-primary transition-colors">{member.name}</CardTitle>
+                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{member.profession || "Attendee"}</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="space-y-3">
+                        {member.phone ? (
+                          <Button variant="outline" className="w-full justify-start gap-4 h-12 border-primary/10 hover:bg-primary/5 hover:text-primary transition-all text-sm group/btn" asChild>
+                            <a href={`tel:${member.phone}`}>
+                              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover/btn:bg-primary/20 transition-colors">
+                                <Phone className="h-4 w-4" />
+                              </div>
+                              <div className="flex flex-col items-start leading-tight">
+                                <span className="text-[10px] text-muted-foreground font-medium uppercase">Phone Number</span>
+                                <span className="font-mono">{member.phone}</span>
+                              </div>
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" className="w-full justify-start gap-4 h-12 text-xs text-muted-foreground hover:text-foreground opacity-50 cursor-not-allowed">
+                            <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                              <Phone className="h-4 w-4" />
+                            </div>
+                            <span>Contact Unavailable</span>
+                          </Button>
+                        )}
+                        {/* <Button variant="ghost" className="w-full justify-start gap-4 h-12 text-xs text-muted-foreground hover:text-foreground" disabled>
+                          <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                            <MessageSquare className="h-4 w-4" />
+                          </div>
+                          <span>Send Message (Coming Soon)</span>
+                        </Button> */}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card className="border-dashed border-2 py-16 bg-muted/20">
+                <CardContent className="flex flex-col items-center justify-center text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center shadow-inner">
+                    <Users2 className="h-8 w-8 text-amber-600" />
+                  </div>
+                  <div className="max-w-xs">
+                    <h3 className="font-semibold text-lg">Group Generation in Progress</h3>
+                    <p className="text-sm text-muted-foreground mb-4">We're organizing attendees into optimal networking groups. You'll receive a notification once your buddies are assigned!</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        )}
 
         {/* ═══════════ Submissions Tab ═══════════ */}
         {(event.is_competition || event.event_type === "competition" || event.event_type === "hackathon") && (
@@ -836,6 +993,24 @@ const EventDetail = () => {
         {/* ═══════════ Manage Tab (Admin) ═══════════ */}
         {isAdmin && (
           <TabsContent value="manage" className="space-y-4 mt-4">
+            {/* Buddy Groups */}
+            <Card className="border-border/40 bg-primary/5 border-primary/20">
+              <CardHeader className="pb-3 border-b border-primary/10">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    <CardTitle className="text-sm">Networking: Buddy Groups</CardTitle>
+                  </div>
+                  <Button size="sm" onClick={() => navigate(`/events/${eventId}/buddy-groups`)}>
+                    Manage Buddy Groups
+                  </Button>
+                </div>
+                <CardDescription className="text-[10px] mt-1">
+                  Partition checked-in attendees into groups of {event.buddy_group_size || 5} for networking.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
             {/* Sharing */}
             <Card className="border-border/40">
               <CardHeader className="pb-2">

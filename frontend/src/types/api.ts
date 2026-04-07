@@ -59,6 +59,20 @@ export interface Signatory {
   signature: string;
 }
 
+export interface BuddyGroupMember {
+  id: number;
+  name: string;
+  profession: string;
+  phone: string;
+  avatar_url: string;
+}
+
+export interface BuddyGroup {
+  id: number;
+  name: string;
+  members: BuddyGroupMember[];
+}
+
 export interface Event {
   id: number;
   uuid: string;
@@ -73,15 +87,23 @@ export interface Event {
   allow_teams: boolean;
   max_team_size: number;
   attendee_count: number;
+  created_by: number;
   created_by_name: string;
   certificates_released: boolean;
+  buddy_group_size: number;
+  buddy_group?: BuddyGroup | null;
   is_registered: boolean;
   is_competition?: boolean;
   judging_criteria?: JudgingCriteria[];
   partners: Partner[];
   signatories: Signatory[];
+  signatory_1?: Signatory | null;
+  signatory_2?: Signatory | null;
+  signatory_3?: Signatory | null;
   is_recurring?: boolean;
   recurrence_type?: 'daily' | 'weekly' | 'monthly' | null;
+  recurrence_day_of_week?: number | null;
+  recurrence_day_of_month?: number | null;
   recurrence_end_date?: string | null;
   recurrence_group_id?: string | null;
   created_at: string;
@@ -99,7 +121,9 @@ export interface EventRegistration {
   is_flagged?: boolean;
   registered_at: string;
   status: 'registered' | 'checked_in' | 'cancelled';
+  buddy_group?: number;
 }
+
 
 export interface Session {
   id: number;

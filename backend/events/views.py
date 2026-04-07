@@ -7,6 +7,7 @@ from django.db.models.functions import Coalesce
 from django.db import IntegrityError
 from django.http import HttpResponse
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from rest_framework import status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -20,11 +21,11 @@ from rest_framework.decorators import action
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-from .models import (
-    User, Event, EventRegistration, Session, Question,
+from .models import (    User, Event, EventRegistration, Session, Question,
+
     Submission, JudgingCriteria, JudgeAssignment, Score,
     Team, TeamMember, SpeakerSession, Partner, Signatory,
-    BrandingConfiguration,
+    BrandingConfiguration, BuddyGroup,
 )
 from .serializers import (
     RegistrationSerializer, UserSerializer,
@@ -35,7 +36,7 @@ from .serializers import (
     LeaderboardEntrySerializer, JudgeAssignmentSerializer,
     TeamSerializer, TeamMemberSerializer,
     PartnerSerializer, SignatorySerializer,
-    BrandingSerializer,
+    BrandingSerializer, BuddyGroupSerializer,
 )
 from .permissions import IsAdminOrReadOnly, IsJudge, IsAdminUser, IsJudgeOrAdmin
 from .google_auth import verify_google_token
@@ -286,8 +287,7 @@ class ResetPasswordView(APIView):
 class EventViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
     def get_queryset(self):
-        from django.db.models import Q
-        return Event.objects.filter(Q(is_recurring=True) | Q(recurrence_group_id__isnull=True))
+        return Event.objects.all().order_by('start_date')
     def get_serializer_class(self):
         if self.action == 'list': return EventListSerializer
         return EventDetailSerializer
@@ -312,7 +312,9 @@ class EventViewSet(viewsets.ModelViewSet):
         fields_changed = (
             old_instance.is_recurring != serializer.validated_data.get('is_recurring', old_instance.is_recurring) or
             old_instance.recurrence_type != serializer.validated_data.get('recurrence_type', old_instance.recurrence_type) or
-            old_instance.recurrence_end_date != serializer.validated_data.get('recurrence_end_date', old_instance.recurrence_end_date)
+            old_instance.recurrence_end_date != serializer.validated_data.get('recurrence_end_date', old_instance.recurrence_end_date) or
+            old_instance.recurrence_day_of_week != serializer.validated_data.get('recurrence_day_of_week', old_instance.recurrence_day_of_week) or
+            old_instance.recurrence_day_of_month != serializer.validated_data.get('recurrence_day_of_month', old_instance.recurrence_day_of_month)
         )
         event = serializer.save()
         if fields_changed:
@@ -322,18 +324,38 @@ class EventViewSet(viewsets.ModelViewSet):
     def _handle_recurrence(self, event):
         if event.is_recurring and event.recurrence_type and event.recurrence_end_date:
             from datetime import timedelta
+            from dateutil.relativedelta import relativedelta, MO, TU, WE, TH, FR, SA, SU
+            
+            days_map = [MO, TU, WE, TH, FR, SA, SU]
+
             if not event.recurrence_group_id:
                 event.recurrence_group_id = uuid.uuid4()
                 event.save(update_fields=['recurrence_group_id'])
+            
             current_start, current_end = event.start_date, event.end_date
             duration = current_end - current_start
+            
             while True:
-                if event.recurrence_type == 'daily': current_start += timedelta(days=1)
-                elif event.recurrence_type == 'weekly': current_start += timedelta(weeks=1)
-                elif event.recurrence_type == 'monthly': current_start += timedelta(days=30)
-                else: break
+                if event.recurrence_type == 'daily':
+                    current_start += timedelta(days=1)
+                elif event.recurrence_type == 'weekly':
+                    if event.recurrence_day_of_week is not None and event.recurrence_day_of_week < 7:
+                        # Find next occurrence of that specific day
+                        current_start += relativedelta(weeks=1, weekday=days_map[event.recurrence_day_of_week])
+                    else:
+                        current_start += timedelta(weeks=1)
+                elif event.recurrence_type == 'monthly':
+                    if event.recurrence_day_of_month is not None:
+                        current_start += relativedelta(months=1, day=event.recurrence_day_of_month)
+                    else:
+                        current_start += relativedelta(months=1)
+                else:
+                    break
+                
                 current_end = current_start + duration
-                if current_start > event.recurrence_end_date: break
+                if current_start > event.recurrence_end_date:
+                    break
+                    
                 Event.objects.create(
                     title=event.title, description=event.description, event_type=event.event_type,
                     start_date=current_start, end_date=current_end, location=event.location,
@@ -353,6 +375,83 @@ class EventViewSet(viewsets.ModelViewSet):
         event.certificates_released = False
         event.save()
         return Response({'detail': 'Certificates unreleased.'})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def generate_buddy_groups(self, request, pk=None):
+        """Generates buddy groups for checked-in attendees with funny catchy names."""
+        event = self.get_object()
+        registrations = event.registrations.filter(status='checked_in', buddy_group__isnull=True)
+        
+        if not registrations.exists():
+            return Response({'detail': 'No checked-in attendees without groups found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        import random
+        # Funny Catchy Names
+        ADJECTIVES = ['Quantum', 'Sassy', 'Wobbly', 'Electric', 'Stealthy', 'Caffeinated', 'Dancing', 'Brilliant', 'Infinite', 'Grumpy', 'Funky', 'Zesty', 'Groovy', 'Sonic', 'Spicy', 'Cyber', 'Neon', 'Golden', 'Epic', 'Wild']
+        NOUNS = ['Narwhals', 'Pixels', 'Builders', 'Pioneers', 'Capybaras', 'Ninjas', 'Coders', 'Architects', 'Unicorns', 'Wizards', 'Hobbits', 'Penguins', 'Dragons', 'Martians', 'Bunnies', 'Hackers', 'Sharks', 'Wolves', 'Tigers', 'Titans']
+
+        reg_list = list(registrations)
+        random.shuffle(reg_list)
+
+        group_size = event.buddy_group_size or 5
+        num_groups = (len(reg_list) + group_size - 1) // group_size
+
+        created_count = 0
+        
+        for i in range(num_groups):
+            # Generate funny name
+            adj = random.choice(ADJECTIVES)
+            noun = random.choice(NOUNS)
+            group_name = f"{adj} {noun}"
+            
+            # Simple collision avoidance
+            if event.buddy_groups.filter(name=group_name).exists():
+                group_name = f"{group_name} {random.randint(1, 99)}"
+
+            group = BuddyGroup.objects.create(event=event, name=group_name)
+            
+            chunk = reg_list[i*group_size : (i+1)*group_size]
+            for reg in chunk:
+                reg.buddy_group = group
+                reg.save()
+            
+            created_count += 1
+
+        return Response({
+            'detail': f'Created {created_count} buddy groups with catchy names!',
+            'groups_created': created_count
+        })
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def clear_buddy_groups(self, request, pk=None):
+        event = self.get_object()
+        event.buddy_groups.all().delete()
+        event.registrations.update(buddy_group=None)
+        return Response({'detail': 'All buddy groups cleared for this event.'})
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser])
+    def get_buddy_groups(self, request, pk=None):
+        event = self.get_object()
+        groups = event.buddy_groups.all()
+        data = []
+        for g in groups:
+            members = g.members.all()
+            data.append({
+                'id': g.id,
+                'name': g.name,
+                'created_at': g.created_at,
+                'members': [
+                    {
+                        'id': m.user.id, 
+                        'name': m.user.display_name or m.user.username, 
+                        'profession': m.user.profession,
+                        'phone': m.user.phone,
+                        'avatar_url': m.user.avatar_url
+                    }
+                    for m in members
+                ]
+            })
+        return Response(data)
 
 
 class EventRegistrationView(APIView):
