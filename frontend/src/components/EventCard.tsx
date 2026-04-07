@@ -31,7 +31,7 @@ export const EventCard = ({ event }: EventCardProps) => {
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              {event.is_recurring && (
+              {(event.is_recurring || event.recurrence_group_id) && (
                 <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 gap-1 px-1.5 py-0">
                   <RefreshCw className="h-3 w-3" />
                   Series
@@ -58,7 +58,7 @@ export const EventCard = ({ event }: EventCardProps) => {
         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5" />
-            {format(new Date(event.start_date), "MMM d, yyyy")}
+            {format(new Date(event.start_date), "EEEE, MMM d, yyyy")}
           </span>
           {event.location && (
             <span className="flex items-center gap-1">

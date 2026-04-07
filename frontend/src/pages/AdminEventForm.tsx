@@ -18,7 +18,7 @@ import { ArrowLeft, Save, Plus, RefreshCw, UsersRound, Award, Settings2 } from "
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { EventType, Partner, Signatory } from "@/types/api";
+import type { EventType, Event, Partner, Signatory } from "@/types/api";
 import { cn } from "@/lib/utils";
 
 const EVENT_TYPES: { value: EventType; label: string }[] = [
@@ -51,6 +51,8 @@ const AdminEventForm = () => {
   // Recurrence
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [recurrenceDayOfWeek, setRecurrenceDayOfWeek] = useState<string>("0");
+  const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState<string>("1");
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
 
   // Certificate Assets
@@ -88,6 +90,8 @@ const AdminEventForm = () => {
       setMaxTeamSize(event.max_team_size ? String(event.max_team_size) : "5");
       setIsRecurring(event.is_recurring || false);
       setRecurrenceType(event.recurrence_type || "weekly");
+      setRecurrenceDayOfWeek(event.recurrence_day_of_week !== undefined && event.recurrence_day_of_week !== null ? String(event.recurrence_day_of_week) : "0");
+      setRecurrenceDayOfMonth(event.recurrence_day_of_month ? String(event.recurrence_day_of_month) : "1");
       setRecurrenceEndDate(event.recurrence_end_date ? event.recurrence_end_date.slice(0, 10) : "");
       
       // Load assets
@@ -112,6 +116,8 @@ const AdminEventForm = () => {
         max_team_size: parseInt(maxTeamSize) || 5,
         is_recurring: isRecurring,
         recurrence_type: isRecurring ? recurrenceType : null,
+        recurrence_day_of_week: isRecurring && recurrenceType === "weekly" ? parseInt(recurrenceDayOfWeek) : null,
+        recurrence_day_of_month: isRecurring && recurrenceType === "monthly" ? parseInt(recurrenceDayOfMonth) : null,
         recurrence_end_date: isRecurring && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : null,
         // Relational assets
         partners: selectedPartners,
@@ -392,6 +398,41 @@ const AdminEventForm = () => {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {recurrenceType === "weekly" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="recurrenceDayOfWeek">Repeats On</Label>
+                        <Select value={recurrenceDayOfWeek} onValueChange={setRecurrenceDayOfWeek}>
+                          <SelectTrigger id="recurrenceDayOfWeek">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">Monday</SelectItem>
+                            <SelectItem value="1">Tuesday</SelectItem>
+                            <SelectItem value="2">Wednesday</SelectItem>
+                            <SelectItem value="3">Thursday</SelectItem>
+                            <SelectItem value="4">Friday</SelectItem>
+                            <SelectItem value="5">Saturday</SelectItem>
+                            <SelectItem value="6">Sunday</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {recurrenceType === "monthly" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="recurrenceDayOfMonth">Day of Month</Label>
+                        <Input
+                          id="recurrenceDayOfMonth"
+                          type="number"
+                          min="1"
+                          max="31"
+                          value={recurrenceDayOfMonth}
+                          onChange={(e) => setRecurrenceDayOfMonth(e.target.value)}
+                        />
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label htmlFor="recurrenceEnd">End Date</Label>
                       <Input

@@ -80,8 +80,13 @@ export interface Event {
   judging_criteria?: JudgingCriteria[];
   partners: Partner[];
   signatories: Signatory[];
+  signatory_1?: Signatory | null;
+  signatory_2?: Signatory | null;
+  signatory_3?: Signatory | null;
   is_recurring?: boolean;
   recurrence_type?: 'daily' | 'weekly' | 'monthly' | null;
+  recurrence_day_of_week?: number | null;
+  recurrence_day_of_month?: number | null;
   recurrence_end_date?: string | null;
   recurrence_group_id?: string | null;
   created_at: string;

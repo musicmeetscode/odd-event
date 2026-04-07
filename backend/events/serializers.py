@@ -76,6 +76,7 @@ class EventListSerializer(serializers.ModelSerializer):
             'attendee_count', 'created_by_name', 'is_registered',
             'is_competition', 'created_at', 'certificates_released',
             'is_recurring', 'recurrence_type', 'recurrence_end_date',
+            'recurrence_day_of_week', 'recurrence_day_of_month', 'recurrence_group_id',
             'partners',
         ]
 
@@ -115,7 +116,8 @@ class EventDetailSerializer(serializers.ModelSerializer):
             'attendee_count', 'created_by', 'created_by_name',
             'judging_criteria', 'is_registered', 'is_competition',
             'created_at', 'updated_at',
-            'is_recurring', 'recurrence_type', 'recurrence_end_date', 'recurrence_group_id', 
+            'is_recurring', 'recurrence_type', 'recurrence_end_date', 
+            'recurrence_day_of_week', 'recurrence_day_of_month', 'recurrence_group_id', 
             'certificates_released', 'partners', 'signatories',
             'partner_ids', 'signatory_ids',
         ]

@@ -136,6 +136,8 @@ class Event(models.Model):
     # Recurrence Fields
     is_recurring = models.BooleanField(default=False)
     recurrence_type = models.CharField(max_length=20, choices=RECURRENCE_CHOICES, null=True, blank=True)
+    recurrence_day_of_week = models.PositiveIntegerField(null=True, blank=True, help_text="0=Monday, 6=Sunday")
+    recurrence_day_of_month = models.PositiveIntegerField(null=True, blank=True, help_text="1-31")
     recurrence_end_date = models.DateTimeField(null=True, blank=True)
     recurrence_group_id = models.UUIDField(null=True, blank=True, help_text="ID to group all events in a recurring series")
     certificates_released = models.BooleanField(default=False, help_text="Whether certificates are available for download")

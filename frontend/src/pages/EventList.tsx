@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { eventsService } from "@/services/events";
@@ -20,6 +21,38 @@ const EventList = () => {
     queryKey: ["my-events"],
     queryFn: eventsService.getMyEvents,
   });
+
+  const filteredEvents = useMemo(() => {
+    if (!allEvents) return [];
+    const now = new Date();
+    const seenGroups = new Set<string>();
+    
+    return allEvents
+      .filter(event => new Date(event.end_date) >= now)
+      .filter(event => {
+        if (event.recurrence_group_id) {
+          if (seenGroups.has(event.recurrence_group_id)) return false;
+          seenGroups.add(event.recurrence_group_id);
+        }
+        return true;
+      });
+  }, [allEvents]);
+
+  const filteredMyEvents = useMemo(() => {
+    if (!myEvents) return [];
+    const now = new Date();
+    const seenGroups = new Set<string>();
+    
+    return myEvents
+      .filter(event => new Date(event.end_date) >= now)
+      .filter(event => {
+        if (event.recurrence_group_id) {
+          if (seenGroups.has(event.recurrence_group_id)) return false;
+          seenGroups.add(event.recurrence_group_id);
+        }
+        return true;
+      });
+  }, [myEvents]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -44,9 +77,9 @@ const EventList = () => {
               <div className="flex justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : allEvents && allEvents.length > 0 ? (
+            ) : filteredEvents && filteredEvents.length > 0 ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {allEvents.map((event) => (
+                {filteredEvents.map((event) => (
                   <EventCard key={event.id} event={event} />
                 ))}
               </div>
@@ -64,9 +97,9 @@ const EventList = () => {
           </TabsContent>
 
           <TabsContent value="mine">
-            {myEvents && myEvents.length > 0 ? (
+            {filteredMyEvents && filteredMyEvents.length > 0 ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {myEvents.map((event) => (
+                {filteredMyEvents.map((event) => (
                   <EventCard key={event.id} event={event} />
                 ))}
               </div>

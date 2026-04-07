@@ -7,6 +7,7 @@ from django.db.models.functions import Coalesce
 from django.db import IntegrityError
 from django.http import HttpResponse
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from rest_framework import status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -286,8 +287,7 @@ class ResetPasswordView(APIView):
 class EventViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
     def get_queryset(self):
-        from django.db.models import Q
-        return Event.objects.filter(Q(is_recurring=True) | Q(recurrence_group_id__isnull=True))
+        return Event.objects.all().order_by('start_date')
     def get_serializer_class(self):
         if self.action == 'list': return EventListSerializer
         return EventDetailSerializer
@@ -312,7 +312,9 @@ class EventViewSet(viewsets.ModelViewSet):
         fields_changed = (
             old_instance.is_recurring != serializer.validated_data.get('is_recurring', old_instance.is_recurring) or
             old_instance.recurrence_type != serializer.validated_data.get('recurrence_type', old_instance.recurrence_type) or
-            old_instance.recurrence_end_date != serializer.validated_data.get('recurrence_end_date', old_instance.recurrence_end_date)
+            old_instance.recurrence_end_date != serializer.validated_data.get('recurrence_end_date', old_instance.recurrence_end_date) or
+            old_instance.recurrence_day_of_week != serializer.validated_data.get('recurrence_day_of_week', old_instance.recurrence_day_of_week) or
+            old_instance.recurrence_day_of_month != serializer.validated_data.get('recurrence_day_of_month', old_instance.recurrence_day_of_month)
         )
         event = serializer.save()
         if fields_changed:
@@ -322,18 +324,38 @@ class EventViewSet(viewsets.ModelViewSet):
     def _handle_recurrence(self, event):
         if event.is_recurring and event.recurrence_type and event.recurrence_end_date:
             from datetime import timedelta
+            from dateutil.relativedelta import relativedelta, MO, TU, WE, TH, FR, SA, SU
+            
+            days_map = [MO, TU, WE, TH, FR, SA, SU]
+
             if not event.recurrence_group_id:
                 event.recurrence_group_id = uuid.uuid4()
                 event.save(update_fields=['recurrence_group_id'])
+            
             current_start, current_end = event.start_date, event.end_date
             duration = current_end - current_start
+            
             while True:
-                if event.recurrence_type == 'daily': current_start += timedelta(days=1)
-                elif event.recurrence_type == 'weekly': current_start += timedelta(weeks=1)
-                elif event.recurrence_type == 'monthly': current_start += timedelta(days=30)
-                else: break
+                if event.recurrence_type == 'daily':
+                    current_start += timedelta(days=1)
+                elif event.recurrence_type == 'weekly':
+                    if event.recurrence_day_of_week is not None and event.recurrence_day_of_week < 7:
+                        # Find next occurrence of that specific day
+                        current_start += relativedelta(weeks=1, weekday=days_map[event.recurrence_day_of_week])
+                    else:
+                        current_start += timedelta(weeks=1)
+                elif event.recurrence_type == 'monthly':
+                    if event.recurrence_day_of_month is not None:
+                        current_start += relativedelta(months=1, day=event.recurrence_day_of_month)
+                    else:
+                        current_start += relativedelta(months=1)
+                else:
+                    break
+                
                 current_end = current_start + duration
-                if current_start > event.recurrence_end_date: break
+                if current_start > event.recurrence_end_date:
+                    break
+                    
                 Event.objects.create(
                     title=event.title, description=event.description, event_type=event.event_type,
                     start_date=current_start, end_date=current_end, location=event.location,
