@@ -28,13 +28,26 @@ const EventList = () => {
     const seenGroups = new Set<string>();
     
     return allEvents
-      .filter(event => new Date(event.end_date) >= now)
       .filter(event => {
         if (event.recurrence_group_id) {
           if (seenGroups.has(event.recurrence_group_id)) return false;
           seenGroups.add(event.recurrence_group_id);
         }
         return true;
+      })
+      .sort((a, b) => {
+        const aUpcoming = new Date(a.end_date) >= now;
+        const bUpcoming = new Date(b.end_date) >= now;
+        
+        if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1; // Upcoming first
+        
+        if (aUpcoming) {
+          // Both are upcoming: soonest first
+          return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+        } else {
+          // Both are past: most recent first
+          return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
+        }
       });
   }, [allEvents]);
 

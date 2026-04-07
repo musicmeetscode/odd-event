@@ -21,6 +21,7 @@ interface EventCardProps {
 
 export const EventCard = ({ event }: EventCardProps) => {
   const navigate = useNavigate();
+  const isPast = new Date(event.end_date) < new Date();
 
   return (
     <Card
@@ -40,12 +41,19 @@ export const EventCard = ({ event }: EventCardProps) => {
               <CardTitle className="text-lg leading-snug">{event.title}</CardTitle>
             </div>
           </div>
-          <Badge
-            variant="outline"
-            className={cn(typeColors[event.event_type] || typeColors.other)}
-          >
-            {event.event_type}
-          </Badge>
+          <div className="flex flex-col items-end gap-1.5">
+            <Badge
+              variant="outline"
+              className={cn(typeColors[event.event_type] || typeColors.other)}
+            >
+              {event.event_type}
+            </Badge>
+            {isPast && (
+              <Badge variant="outline" className="bg-muted text-muted-foreground border-muted-foreground/20 text-[10px] py-0">
+                Past
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

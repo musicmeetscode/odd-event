@@ -216,6 +216,8 @@ const EventDetail = () => {
   if (isLoading) return <div className="flex justify-center items-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!event) return <div className="p-8 text-center">Event not found.</div>;
 
+  const isPast = new Date(event.end_date) < new Date();
+
   const checkInUrl = `${window.location.origin}/check-in`;
   const eventUrl = `${window.location.origin}/events/${eventId}`;
   const unassignedJudges = (allJudgeUsers || []).filter(
@@ -421,7 +423,7 @@ const EventDetail = () => {
           </div>
 
           {/* Register button inside hero */}
-          {!isAdmin && isAuthenticated && !event.is_registered && (
+          {!isAdmin && isAuthenticated && !event.is_registered && !isPast && (
             <Button className="mt-4 bg-white text-slate-900 hover:bg-white/90 font-semibold" onClick={() => registerMutation.mutate()}>
               <UserCheck className="h-4 w-4 mr-1.5" />Register for this event
             </Button>
@@ -739,9 +741,11 @@ const EventDetail = () => {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm">Sessions</CardTitle>
-                  <Button size="sm" variant="outline" onClick={() => setShowSessionForm(!showSessionForm)}>
-                    <Plus className="h-4 w-4 mr-1" />{showSessionForm ? "Cancel" : "Add Session"}
-                  </Button>
+                  {isAdmin && (
+                    <Button size="sm" variant="outline" onClick={() => setShowSessionForm(!showSessionForm)}>
+                      <Plus className="h-4 w-4 mr-1" />{showSessionForm ? "Cancel" : "Add Session"}
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               {showSessionForm && (
@@ -944,7 +948,9 @@ const EventDetail = () => {
               <h3 className="font-semibold">Submissions ({submissionsCount})</h3>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => navigate(`/events/${eventId}/leaderboard`)}><Trophy className="h-4 w-4 mr-1" />Leaderboard</Button>
-                <Button size="sm" onClick={() => navigate(`/events/${eventId}/submit`)}><Plus className="h-4 w-4 mr-1" />Submit</Button>
+                {!isPast && (
+                  <Button size="sm" onClick={() => navigate(`/events/${eventId}/submit`)}><Plus className="h-4 w-4 mr-1" />Submit</Button>
+                )}
               </div>
             </div>
             {(submissions || []).map((s: Submission) => <SubmissionCard key={s.id} submission={s} />)}
@@ -954,17 +960,19 @@ const EventDetail = () => {
         {/* ═══════════ Teams Tab ═══════════ */}
         {event.allow_teams && (
           <TabsContent value="teams" className="space-y-4 mt-4">
-            <Card className="border-border/40">
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Create a Team</CardTitle></CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
-                  <Input placeholder="Team name" value={teamName} onChange={e => setTeamName(e.target.value)} />
-                  <Button onClick={() => createTeamMutation.mutate(teamName)} disabled={!teamName.trim()}>
-                    <Plus className="h-4 w-4 mr-1" />Create
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            {!isPast && (
+              <Card className="border-border/40">
+                <CardHeader className="pb-2"><CardTitle className="text-sm">Create a Team</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="flex gap-2">
+                    <Input placeholder="Team name" value={teamName} onChange={e => setTeamName(e.target.value)} />
+                    <Button onClick={() => createTeamMutation.mutate(teamName)} disabled={!teamName.trim()}>
+                      <Plus className="h-4 w-4 mr-1" />Create
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {(teams || []).map((t: Team) => (
               <Card key={t.id} className="border-border/40">
                 <CardContent className="py-3">
@@ -973,7 +981,7 @@ const EventDetail = () => {
                       <h4 className="font-semibold">{t.name}</h4>
                       <p className="text-xs text-muted-foreground">{t.member_count}/{event.max_team_size} members</p>
                     </div>
-                    {t.member_count < event.max_team_size && (
+                    {t.member_count < event.max_team_size && !isPast && (
                       <Button size="sm" variant="outline" onClick={() => joinTeamMutation.mutate(t.id)}>Join</Button>
                     )}
                   </div>
