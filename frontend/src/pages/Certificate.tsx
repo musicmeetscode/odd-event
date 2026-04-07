@@ -42,14 +42,26 @@ const Certificate = () => {
         if (!certRef.current) return;
         setIsGenerating(true);
         try {
-            // Wait for images and fonts to load
-            await new Promise(r => setTimeout(r, 500));
+            // Wait for fonts to be ready
+            await document.fonts.ready;
+            
+            // On mobile, scrolling to top is critical as some browsers capture relative to viewport
+            window.scrollTo(0, 0);
+            
+            // Wait for images and layout to settle
+            await new Promise(r => setTimeout(r, 800));
+            
             const canvas = await html2canvas(certRef.current, {
                 useCORS: true,
-                scale: 3,
+                scale: 2, // Scale 2 is enough for high-res while being more mobile-friendly
                 backgroundColor: "#ffffff",
                 logging: false,
                 allowTaint: true,
+                // These properties ensure we capture the full element bounds irrespective of screen size
+                windowWidth: 1000,
+                windowHeight: 700,
+                scrollX: 0,
+                scrollY: 0,
             });
             
             const url = canvas.toDataURL("image/png");
@@ -145,15 +157,15 @@ const Certificate = () => {
                         backgroundSize: '24px 24px'
                     }}></div>
 
-                    {/* Left Top Banner (Orange) */}
-                    <div className="absolute top-0 left-0 w-64 h-64 bg-[#F58220]" style={{ 
-                        clipPath: 'polygon(0 0, 100% 0, 0 100%)' 
-                    }}></div>
+                    {/* Left Top Banner (Orange) - SVG for robust canvas rendering */}
+                    <svg className="absolute top-0 left-0 w-64 h-64" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon points="0,0 100,0 0,100" fill="#F58220" />
+                    </svg>
 
-                    {/* Right Bottom Banner (Blue) */}
-                    <div className="absolute bottom-0 right-0 w-80 h-80 bg-[#1a365d]" style={{ 
-                        clipPath: 'polygon(100% 0, 100% 100%, 0 100%)' 
-                    }}></div>
+                    {/* Right Bottom Banner (Blue) - SVG for robust canvas rendering */}
+                    <svg className="absolute bottom-0 right-0 w-80 h-80" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon points="100,0 100,100 0,100" fill="#1a365d" />
+                    </svg>
 
                     {/* Main Content Container */}
                     <div className="relative h-full flex flex-col items-center px-16 pt-12 z-10 text-center">
