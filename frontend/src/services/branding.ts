@@ -8,7 +8,7 @@ export const brandingService = {
   },
 
   updateBranding: async (data: Partial<BrandingConfiguration> & { logo?: any }) => {
-    // We use FormData for potential image upload, but if no logo, we can use JSON
+    // We use FormData for potential image upload
     if (data.logo && typeof data.logo !== 'string') {
         const formData = new FormData();
         Object.entries(data).forEach(([key, value]) => {
@@ -22,7 +22,13 @@ export const brandingService = {
         return response.data;
     }
     
-    const response = await apiClient.patch<BrandingConfiguration>("/branding/", data);
+    // If logo is a string, it means it hasn't changed. Send other data via JSON without the logo field.
+    const payload = { ...data };
+    if (typeof payload.logo === 'string') {
+        delete payload.logo;
+    }
+    
+    const response = await apiClient.patch<BrandingConfiguration>("/branding/", payload);
     return response.data;
   },
 };

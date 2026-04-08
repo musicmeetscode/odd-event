@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, ArrowLeft, Home } from "lucide-react";
+import Navbar from "./Navbar";
 import { useBrand } from "@/contexts/BrandContext";
 
 const Layout = () => {
@@ -28,17 +29,9 @@ const Layout = () => {
   const isLanding = window.location.pathname === "/";
 
   if (!isAuthenticated) return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="flex-1 flex flex-col items-center justify-center p-4">
-        {!isLanding && (
-          <Link 
-            to={getHomePath()} 
-            className="mb-6 flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Home
-          </Link>
-        )}
+    <div className="min-h-screen flex flex-col bg-white">
+      {isLanding && <Navbar />}
+      <div className="flex-1 flex flex-col">
         <Outlet />
       </div>
       <Footer />

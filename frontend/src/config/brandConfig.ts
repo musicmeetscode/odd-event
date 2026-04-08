@@ -9,18 +9,18 @@
 
 export const brand = {
   /** Short brand name, e.g. "Blue Ox" */
-  name: import.meta.env.VITE_BRAND_NAME || "White Label",
+  name: import.meta.env.VITE_BRAND_NAME || "MetToday",
 
   /** Tagline shown after the name, e.g. "Events" → "Blue Ox Events" */
-  tagline: import.meta.env.VITE_BRAND_TAGLINE || "Events",
+  tagline: import.meta.env.VITE_BRAND_TAGLINE || "",
 
   /** Full display name used in titles and headings */
   get fullName() {
-    return `${this.name} ${this.tagline}`;
+    return this.name;
   },
 
   /** Legal entity name for copyright notices */
-  company: import.meta.env.VITE_BRAND_COMPANY || "White Label Corp",
+  company: import.meta.env.VITE_BRAND_COMPANY || "MetToday",
 
   /** Path to logo in /public (or a full URL) */
   logo: "/logo.png",

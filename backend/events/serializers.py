@@ -71,6 +71,14 @@ class BrandingSerializer(serializers.ModelSerializer):
         model = BrandingConfiguration
         fields = '__all__'
 
+    def to_internal_value(self, data):
+        # If logo is provided as a string (URL), ignore it during update
+        # This prevents validation errors when the frontend sends back the current logo URL
+        if 'logo' in data and isinstance(data['logo'], str):
+            data = data.copy()
+            data.pop('logo')
+        return super().to_internal_value(data)
+
 
 # ─── Events ────────────────────────────────────────────────────
 
