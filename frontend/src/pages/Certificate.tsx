@@ -53,11 +53,12 @@ const Certificate = () => {
             
             const canvas = await html2canvas(certRef.current, {
                 useCORS: true,
-                scale: 2, // Scale 2 is enough for high-res while being more mobile-friendly
+                scale: 3, // Increased scale for better resolution
                 backgroundColor: "#ffffff",
                 logging: false,
                 allowTaint: true,
-                // These properties ensure we capture the full element bounds irrespective of screen size
+                width: 1000,
+                height: 700,
                 windowWidth: 1000,
                 windowHeight: 700,
                 scrollX: 0,
@@ -120,28 +121,24 @@ const Certificate = () => {
 
     return (
         <div className="max-w-5xl mx-auto px-4 py-6 pt-20">
-            <div className="flex items-center justify-between mb-8 no-print">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 no-print">
                 <div className="flex items-center gap-2">
                     <Button variant="ghost" size="icon" onClick={() => navigate(`/events/${eventId}`)}><ArrowLeft className="h-4 w-4" /></Button>
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Your Achievement</h1>
-                        <p className="text-sm text-muted-foreground">{event?.title}</p>
+                        <h1 className="text-xl md:text-2xl font-bold tracking-tight">Your Achievement</h1>
+                        <p className="text-xs md:text-sm text-muted-foreground">{event?.title}</p>
                     </div>
                 </div>
-                <div className="flex gap-2">
-                    {cert.sharing_url && (
-                        <Button variant="outline" onClick={() => window.open(cert.sharing_url, '_blank')}>
-                            <ExternalLink className="h-4 w-4 mr-2" /> Verify Details
-                        </Button>
-                    )}
-                    <Button onClick={handleDownload} disabled={isGenerating} className="bg-primary hover:bg-primary/90">
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <Button onClick={handleDownload} disabled={isGenerating} className="bg-primary hover:bg-primary/90 w-full sm:w-auto">
                         {isGenerating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
                         {isGenerating ? "Preparing..." : "Download High-Res"}
                     </Button>
                 </div>
             </div>
 
-            <div className="flex justify-center overflow-x-auto pb-10">
+            <div className="certificate-preview-container flex justify-center pb-10">
+                <div className="certificate-scaler">
                 <div
                     ref={certRef}
                     className="relative bg-white shadow-2xl overflow-hidden shrink-0 select-none"
@@ -264,11 +261,68 @@ const Certificate = () => {
                     </div>
                 </div>
             </div>
+        </div>
 
             <style>{`
                 @media print {
                     .no-print { display: none; }
                     body { background: white; }
+                }
+
+                .certificate-preview-container {
+                    width: 100%;
+                    overflow: visible;
+                }
+
+                .certificate-scaler {
+                    transform-origin: top center;
+                    transition: transform 0.2s ease-out;
+                }
+
+                /* Mobile scaling logic */
+                @media (max-width: 1040px) {
+                    .certificate-scaler {
+                        transform: scale(0.85);
+                    }
+                    .certificate-preview-container {
+                        height: 620px;
+                    }
+                }
+
+                @media (max-width: 850px) {
+                    .certificate-scaler {
+                        transform: scale(0.7);
+                    }
+                    .certificate-preview-container {
+                        height: 520px;
+                    }
+                }
+
+                @media (max-width: 700px) {
+                    .certificate-scaler {
+                        transform: scale(0.55);
+                    }
+                    .certificate-preview-container {
+                        height: 420px;
+                    }
+                }
+
+                @media (max-width: 550px) {
+                    .certificate-scaler {
+                        transform: scale(0.4);
+                    }
+                    .certificate-preview-container {
+                        height: 310px;
+                    }
+                }
+
+                @media (max-width: 420px) {
+                    .certificate-scaler {
+                        transform: scale(0.32);
+                    }
+                    .certificate-preview-container {
+                        height: 250px;
+                    }
                 }
             `}</style>
         </div>

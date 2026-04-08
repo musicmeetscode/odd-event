@@ -45,6 +45,7 @@ urlpatterns = [
     # Leaderboard & Wall of Fame
     path('events/<str:event_id>/leaderboard/', views.LeaderboardView.as_view(), name='event-leaderboard'),
     path('events/<str:event_id>/wall-of-fame/', views.WallOfFameView.as_view(), name='event-wall-of-fame'),
+    path('global-wall-of-fame/', views.GlobalWallOfFameView.as_view(), name='global-wall-of-fame'),
 
     # Admin: judging criteria management
     path('events/<str:event_id>/criteria/', views.JudgingCriteriaViewSet.as_view({

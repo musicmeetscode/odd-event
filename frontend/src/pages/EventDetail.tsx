@@ -473,50 +473,50 @@ const EventDetail = () => {
 
       {/* ═══════════ #3: Pill-Style Tabs with Icons & Counts ═══════════ */}
       {/* #5: Sticky header (the tabs stick on scroll) */}
-      <div className="sticky top-14 z-20 bg-background/95 backdrop-blur-sm pb-4 -mx-4 px-4 pt-1">
+      <div className="sticky top-14 z-20 bg-background/95 backdrop-blur-sm pb-6 -mx-4 px-4 pt-2">
         <Tabs defaultValue="overview">
-          <TabsList className="flex flex-wrap h-auto gap-1.5 bg-muted/50 p-1 rounded-xl border border-border/40">
-            <TabsTrigger value="overview" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
-              <Calendar className="h-3.5 w-3.5" />Overview
+          <TabsList className="flex flex-wrap h-auto gap-2 bg-muted/40 p-1.5 rounded-2xl border border-border/40 shadow-sm">
+            <TabsTrigger value="overview" className={`rounded-xl text-[13px] font-medium transition-all data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-md px-4 py-2 gap-2 hover:bg-muted/60 data-[state=active]:hover:bg-gradient-to-br`}>
+              <Calendar className="h-4 w-4" />Overview
             </TabsTrigger>
-            <TabsTrigger value="sessions" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
-              <Clock className="h-3.5 w-3.5" />Sessions
-              {sessionsCount > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-mono bg-white/20 text-white border-0">{sessionsCount}</Badge>}
+            <TabsTrigger value="sessions" className={`rounded-xl text-[13px] font-medium transition-all data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-md px-4 py-2 gap-2 hover:bg-muted/60 data-[state=active]:hover:bg-gradient-to-br`}>
+              <Clock className="h-4 w-4" />Sessions
+              {sessionsCount > 0 && <Badge variant="secondary" className="ml-0.5 h-4.5 px-1.5 text-[10px] font-mono bg-white/20 text-white border-0">{sessionsCount}</Badge>}
             </TabsTrigger>
             {(event.is_competition || event.event_type === "competition" || event.event_type === "hackathon") && (
-              <TabsTrigger value="submissions" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
-                <Trophy className="h-3.5 w-3.5" />Submissions
-                {submissionsCount > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-mono bg-white/20 text-white border-0">{submissionsCount}</Badge>}
+              <TabsTrigger value="submissions" className={`rounded-xl text-[13px] font-medium transition-all data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-md px-4 py-2 gap-2 hover:bg-muted/60 data-[state=active]:hover:bg-gradient-to-br`}>
+                <Trophy className="h-4 w-4" />Submissions
+                {submissionsCount > 0 && <Badge variant="secondary" className="ml-0.5 h-4.5 px-1.5 text-[10px] font-mono bg-white/20 text-white border-0">{submissionsCount}</Badge>}
               </TabsTrigger>
             )}
             {(event.is_registered || isAdmin) && (
-              <TabsTrigger value="networking" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
-                <Users2 className="h-3.5 w-3.5" />Networking
+              <TabsTrigger value="networking" className={`rounded-xl text-[13px] font-medium transition-all data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-md px-4 py-2 gap-2 hover:bg-muted/60 data-[state=active]:hover:bg-gradient-to-br`}>
+                <Users2 className="h-4 w-4" />Networking
                 {isAdmin ? (
                   allBuddyGroups && allBuddyGroups.length > 0 && (
-                    <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-mono bg-white/20 text-white border-0">{allBuddyGroups.length}</Badge>
+                    <Badge variant="secondary" className="ml-0.5 h-4.5 px-1.5 text-[10px] font-mono bg-white/20 text-white border-0">{allBuddyGroups.length}</Badge>
                   )
                 ) : (
                   event.buddy_group && (
-                    <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-mono bg-white/20 text-white border-0">{event.buddy_group.members?.length || 0}</Badge>
+                    <Badge variant="secondary" className="ml-0.5 h-4.5 px-1.5 text-[10px] font-mono bg-white/20 text-white border-0">{event.buddy_group.members?.length || 0}</Badge>
                   )
                 )}
               </TabsTrigger>
             )}
             {event.allow_teams && (
-              <TabsTrigger value="teams" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
-                <UsersRound className="h-3.5 w-3.5" />Teams
-                {teamsCount > 0 && <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-mono bg-white/20 text-white border-0">{teamsCount}</Badge>}
+              <TabsTrigger value="teams" className={`rounded-xl text-[13px] font-medium transition-all data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-md px-4 py-2 gap-2 hover:bg-muted/60 data-[state=active]:hover:bg-gradient-to-br`}>
+                <UsersRound className="h-4 w-4" />Teams
+                {teamsCount > 0 && <Badge variant="secondary" className="ml-0.5 h-4.5 px-1.5 text-[10px] font-mono bg-white/20 text-white border-0">{teamsCount}</Badge>}
               </TabsTrigger>
             )}
             {isAdmin && (
-              <TabsTrigger value="manage" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
-                <Edit className="h-3.5 w-3.5" />Manage
+              <TabsTrigger value="manage" className={`rounded-xl text-[13px] font-medium transition-all data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-md px-4 py-2 gap-2 hover:bg-muted/60 data-[state=active]:hover:bg-gradient-to-br`}>
+                <Edit className="h-4 w-4" />Manage
               </TabsTrigger>
             )}
             {isAdmin && (
-              <TabsTrigger value="stats" className={`rounded-lg text-xs data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-sm px-3 py-1.5 gap-1.5`}>
-                <BarChart3 className="h-3.5 w-3.5" />Stats
+              <TabsTrigger value="stats" className={`rounded-xl text-[13px] font-medium transition-all data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-md px-4 py-2 gap-2 hover:bg-muted/60 data-[state=active]:hover:bg-gradient-to-br`}>
+                <BarChart3 className="h-4 w-4" />Stats
               </TabsTrigger>
             )}
           </TabsList>
@@ -1002,7 +1002,7 @@ const EventDetail = () => {
         {isAdmin && (
           <TabsContent value="manage" className="space-y-4 mt-4">
             {/* Buddy Groups */}
-            <Card className="border-border/40 bg-primary/5 border-primary/20">
+            <Card className="bg-primary/5 border-primary/20">
               <CardHeader className="pb-3 border-b border-primary/10">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">

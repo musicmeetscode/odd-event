@@ -35,6 +35,7 @@ export interface BrandingConfiguration {
     id: number;
     name: string;
     tagline: string;
+    description: string;
     logo: string | null;
     primary_color: string;
     accent_color: string;
@@ -193,6 +194,15 @@ export interface LeaderboardEntry {
   submission_id: number;
   title: string;
   submitted_by: string;
+  total_score: number;
+}
+
+export interface GlobalWallOfFameEntry {
+  submission_id: number;
+  title: string;
+  submitted_by: string;
+  avatar_url: string | null;
+  event_title: string;
   total_score: number;
 }
 

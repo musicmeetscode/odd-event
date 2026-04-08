@@ -411,6 +411,7 @@ class Score(models.Model):
 class BrandingConfiguration(models.Model):
     name = models.CharField(max_length=100, default="White Label")
     tagline = models.CharField(max_length=255, default="Events")
+    description = models.TextField(default="Empowering creators to discover, compete, and connect through world-class events.", help_text="Platform description for the landing page")
     logo = models.ImageField(upload_to='branding/', blank=True, null=True)
     primary_color = models.CharField(max_length=7, default="#2962FF", help_text="Hex color for primary theme")
     accent_color = models.CharField(max_length=7, default="#F58220", help_text="Hex color for secondary theme")
