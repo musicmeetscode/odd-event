@@ -4,6 +4,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { eventsService } from "@/services/events";
 import { adminService } from "@/services/admin";
+import { judgingService } from "@/services/judging";
 import { teamsService } from "@/services/teams";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { ScoringForm } from "@/components/ScoringForm";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +31,7 @@ import {
   Check, X, Pencil, Search, Ban, LogIn, MoreHorizontal, Eye,
   Menu, Users2, Phone,
   Award, Settings2, RefreshCw,
+  Gavel,
 } from "lucide-react";
 import { format } from "date-fns";
 import { QRCodeCanvas } from "qrcode.react";
@@ -44,7 +47,7 @@ const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
   const eventId = id || "";
   const navigate = useNavigate();
-  const { isAuthenticated, role } = useAuth();
+  const { isAuthenticated, role, userId } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = role === "admin";
 
@@ -68,6 +71,7 @@ const EventDetail = () => {
   // ─── Attendee management ───
   const [attendeeSearch, setAttendeeSearch] = useState("");
   const [attendeeFilter, setAttendeeFilter] = useState<"all" | "registered" | "checked_in" | "cancelled">("all");
+  const [selectedSubmissionToJudge, setSelectedSubmissionToJudge] = useState<Submission | null>(null);
 
   // ─── Data queries ───
   const { data: event, isLoading } = useQuery({
@@ -199,17 +203,34 @@ const EventDetail = () => {
     mutationFn: (criteriaId: number) => adminService.deleteCriteria(eventId, criteriaId),
     onSuccess: () => { toast.success("Criteria removed."); queryClient.invalidateQueries({ queryKey: ["event", eventId] }); },
   });
+  const scoreMutation = useMutation({
+    mutationFn: (scores: { criteria: number; score: number; comment?: string }[]) =>
+      judgingService.submitScores(selectedSubmissionToJudge!.id, scores),
+    onSuccess: (data: { detail?: string }) => {
+      toast.success(data.detail || "Scores submitted!");
+      queryClient.invalidateQueries({ queryKey: ["submissions", eventId] });
+      setSelectedSubmissionToJudge(null);
+    },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { error?: string } } };
+      const msg = err.response?.data?.error || "Failed to submit scores.";
+      toast.error(String(msg));
+    },
+  });
 
   // ─── Attendee management mutations ───
   const updateAttendeeMutation = useMutation({
     mutationFn: ({ registrationId, status }: { registrationId: number; status: string }) =>
       adminService.updateAttendeeStatus(eventId, registrationId, status),
-    onSuccess: (data) => { toast.success(data.detail); queryClient.invalidateQueries({ queryKey: ["attendees", eventId] }); },
-    onError: () => toast.error("Failed to update attendee status."),
+    onSuccess: (data: { name: string }) => { toast.success(`Saved check-in for ${data.name}!`); queryClient.invalidateQueries({ queryKey: ["event-attendees", eventId] }); queryClient.invalidateQueries({ queryKey: ["attendees", eventId] }); },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err.response?.data?.error || "Failed to update attendee.");
+    },
   });
   const removeAttendeeMutation = useMutation({
     mutationFn: (registrationId: number) => adminService.removeAttendee(eventId, registrationId),
-    onSuccess: (data) => { toast.success(data.detail); queryClient.invalidateQueries({ queryKey: ["attendees", eventId] }); queryClient.invalidateQueries({ queryKey: ["event", eventId] }); },
+    onSuccess: (data: { detail: string }) => { toast.success(data.detail); queryClient.invalidateQueries({ queryKey: ["attendees", eventId] }); queryClient.invalidateQueries({ queryKey: ["event", eventId] }); },
     onError: () => toast.error("Failed to remove attendee."),
   });
 
@@ -320,6 +341,9 @@ const EventDetail = () => {
   const sessionsCount = sessions?.length || 0;
   const submissionsCount = submissions?.length || 0;
   const teamsCount = teams?.length || 0;
+
+  const canPeerJudge = event.is_registered && event.peer_judging_percent > 0;
+  const showJudgingTab = isAdmin || role === 'judge' || canPeerJudge;
 
   return (
     <div className="max-w-5xl mx-auto px-4 pb-12 pt-16">
@@ -517,6 +541,11 @@ const EventDetail = () => {
             {isAdmin && (
               <TabsTrigger value="stats" className={`rounded-xl text-[13px] font-medium transition-all data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-md px-4 py-2 gap-2 hover:bg-muted/60 data-[state=active]:hover:bg-gradient-to-br`}>
                 <BarChart3 className="h-4 w-4" />Stats
+              </TabsTrigger>
+            )}
+            {showJudgingTab && (
+              <TabsTrigger value="judging" className={`rounded-xl text-[13px] font-medium transition-all data-[state=active]:bg-gradient-to-br ${theme.gradient} data-[state=active]:text-white data-[state=active]:shadow-md px-4 py-2 gap-2 hover:bg-muted/60 data-[state=active]:hover:bg-gradient-to-br`}>
+                <Gavel className="h-4 w-4" />Judging
               </TabsTrigger>
             )}
           </TabsList>
@@ -1324,6 +1353,85 @@ const EventDetail = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+        )}
+
+        {/* ═══════════ Judging Tab ═══════════ */}
+        {showJudgingTab && (
+          <TabsContent value="judging" className="space-y-4 mt-6 pb-24">
+            {selectedSubmissionToJudge ? (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                <Button variant="ghost" size="sm" className="mb-4 -ml-2" onClick={() => setSelectedSubmissionToJudge(null)}>
+                  <ArrowLeft className="h-4 w-4 mr-1" /> Back to Submissions
+                </Button>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold">{selectedSubmissionToJudge.title}</h2>
+                  <p className="text-sm text-muted-foreground">by {selectedSubmissionToJudge.submitted_by_name}</p>
+                  {selectedSubmissionToJudge.description && (
+                    <p className="text-sm text-muted-foreground mt-4 whitespace-pre-wrap p-4 bg-muted/30 rounded-xl border border-border/40">
+                      {selectedSubmissionToJudge.description}
+                    </p>
+                  )}
+                </div>
+
+                <ScoringForm
+                  criteria={event.judging_criteria || []}
+                  onSubmit={(scores) => scoreMutation.mutate(scores)}
+                  isSubmitting={scoreMutation.isPending}
+                />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold tracking-tight">Peer Judging</h2>
+                    <p className="text-muted-foreground text-sm">
+                      {canPeerJudge 
+                        ? "Score other participants' submissions to contribute to the final results!"
+                        : "Official judging dashboard."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3">
+                  {(submissions || [])
+                    .filter(s => {
+                      // Restriction: Cannot judge own submission
+                      if (isAdmin) return true;
+                      const isOwn = s.submitted_by === userId || (s.team && teams?.some(t => t.id === s.team && t.members.some(m => m.user === userId)));
+                      return !isOwn;
+                    })
+                    .map((sub) => (
+                      <Card 
+                        key={sub.id} 
+                        className="border-border/50 cursor-pointer hover:shadow-md transition-all hover:border-primary/30 group"
+                        onClick={() => setSelectedSubmissionToJudge(sub)}
+                      >
+                        <CardContent className="p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                                <Trophy className="h-5 w-5 text-slate-400 group-hover:text-primary transition-colors" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold group-hover:text-primary transition-colors">{sub.title}</h3>
+                                <p className="text-xs text-muted-foreground">by {sub.submitted_by_name}</p>
+                            </div>
+                          </div>
+                          <Button variant="outline" size="sm" className="gap-1.5 h-8">
+                            <Plus className="h-3.5 w-3.5" /> Score
+                          </Button>
+                        </CardContent>
+                      </Card>
+                  ))}
+                  {(submissions || []).length === 0 && (
+                    <div className="text-center py-20 border-2 border-dashed rounded-2xl bg-muted/20">
+                      <Gavel className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                      <p className="text-muted-foreground">No submissions available for judging yet.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </TabsContent>
         )}
 

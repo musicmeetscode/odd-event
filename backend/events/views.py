@@ -89,6 +89,7 @@ class RegisterView(APIView):
                     'username': user.username,
                     'display_name': user.display_name,
                     'role': user.role,
+                    'user_id': user.id,
                 }, status=status.HTTP_201_CREATED)
             except IntegrityError:
                 return Response(
@@ -118,6 +119,7 @@ class LoginView(ObtainAuthToken):
                     'username': user.username,
                     'display_name': user.display_name or user.username,
                     'role': effective_role,
+                    'user_id': user.id,
                     'must_reset_password': user.must_reset_password,
                 })
             except Token.DoesNotExist:
@@ -209,6 +211,7 @@ class GoogleLoginView(APIView):
             'username': user.username,
             'display_name': user.display_name or user.username,
             'role': user.role,
+            'user_id': user.id,
             'avatar_url': user.avatar_url,
             'check_in_result': check_in_result,
         }, status=status.HTTP_200_OK)
@@ -557,21 +560,42 @@ class JudgeDashboardView(APIView):
 
 
 class ScoreView(APIView):
-    permission_classes = [IsJudgeOrAdmin]
+    permission_classes = [IsAuthenticated]
     def post(self, request):
         submission_id, scores_data = request.data.get('submission'), request.data.get('scores', [])
         if not submission_id or not scores_data: return Response({"error": "submission and scores are required."}, status=status.HTTP_400_BAD_REQUEST)
         try: submission = Submission.objects.get(pk=submission_id)
         except Submission.DoesNotExist: return Response({"error": "Submission not found."}, status=status.HTTP_404_NOT_FOUND)
-        if request.user.role != 'admin' and not JudgeAssignment.objects.filter(judge=request.user, event=submission.event).exists():
-            return Response({"error": "You are not assigned to judge this event."}, status=status.HTTP_403_FORBIDDEN)
+        
+        event = submission.event
+        is_admin = request.user.role == 'admin'
+        is_official_judge = JudgeAssignment.objects.filter(judge=request.user, event=event).exists()
+        is_attendee = event.registrations.filter(user=request.user, status__in=['registered', 'checked_in']).exists()
+        can_peer_judge = event.peer_judging_percent > 0 and is_attendee
+
+        if not is_admin and not is_official_judge and not can_peer_judge:
+            return Response({"error": "You do not have permission to judge this event."}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Self-judging restriction
+        if submission.submitted_by == request.user or (submission.team and submission.team.members.filter(user=request.user).exists()):
+             return Response({"error": "You cannot judge your own or your team's submission."}, status=status.HTTP_403_FORBIDDEN)
+
         saved_scores = []
         for entry in scores_data:
             criteria_id, score_val, comment = entry.get('criteria'), entry.get('score'), entry.get('comment', '')
-            try: criteria = JudgingCriteria.objects.get(pk=criteria_id, event=submission.event)
+            try: criteria = JudgingCriteria.objects.get(pk=criteria_id, event=event)
             except JudgingCriteria.DoesNotExist: continue
             if score_val is None or float(score_val) < 0 or float(score_val) > criteria.max_score: continue
-            score_obj, created = Score.objects.update_or_create(submission=submission, criteria=criteria, judge=request.user, defaults={'score': float(score_val), 'comment': comment})
+            
+            # Use is_peer_score based on official judge status
+            is_peer = not is_official_judge and not is_admin
+            
+            score_obj, created = Score.objects.update_or_create(
+                submission=submission, 
+                criteria=criteria, 
+                judge=request.user, 
+                defaults={'score': float(score_val), 'comment': comment, 'is_peer_score': is_peer}
+            )
             saved_scores.append(ScoreSerializer(score_obj).data)
         self._broadcast_leaderboard(submission.event)
         return Response({'detail': f'{len(saved_scores)} scores saved.', 'scores': saved_scores}, status=status.HTTP_200_OK)
@@ -584,8 +608,12 @@ class ScoreView(APIView):
         submissions = Submission.objects.filter(event=event)
         entries = []
         for sub in submissions:
-            total = Score.objects.filter(submission=sub).aggregate(total=Coalesce(Sum(F('score') * F('criteria__weight'), output_field=FloatField()), 0.0))['total']
-            entries.append({'submission_id': sub.id, 'title': sub.title, 'submitted_by': sub.submitted_by.display_name or sub.submitted_by.username, 'total_score': round(total, 2)})
+            entries.append({
+                'submission_id': sub.id, 
+                'title': sub.title, 
+                'submitted_by': sub.submitted_by.display_name or sub.submitted_by.username, 
+                'total_score': sub.total_weighted_score
+            })
         entries.sort(key=lambda x: x['total_score'], reverse=True)
         for i, entry in enumerate(entries, 1): entry['rank'] = i
         return entries
@@ -621,7 +649,11 @@ class SignatoryViewSet(viewsets.ModelViewSet):
 
 class JudgingCriteriaViewSet(viewsets.ModelViewSet):
     serializer_class = JudgingCriteriaSerializer
-    permission_classes = [IsAdminUser]
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
     def get_queryset(self): 
         event = resolve_event(self.kwargs.get('event_id'))
         return JudgingCriteria.objects.filter(event=event) if event else JudgingCriteria.objects.none()

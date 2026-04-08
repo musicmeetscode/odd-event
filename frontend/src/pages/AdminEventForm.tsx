@@ -48,6 +48,7 @@ const AdminEventForm = () => {
   const [allowTeams, setAllowTeams] = useState(false);
   const [maxTeamSize, setMaxTeamSize] = useState("5");
   const [buddyGroupSize, setBuddyGroupSize] = useState("5");
+  const [peerJudgingPercent, setPeerJudgingPercent] = useState("0");
   
   // Recurrence
   const [isRecurring, setIsRecurring] = useState(false);
@@ -101,6 +102,7 @@ const AdminEventForm = () => {
       setSig2(event.signatory_2?.id ? String(event.signatory_2.id) : "none");
       setSig3(event.signatory_3?.id ? String(event.signatory_3.id) : "none");
       setBuddyGroupSize(event.buddy_group_size ? String(event.buddy_group_size) : "5");
+      setPeerJudgingPercent(event.peer_judging_percent ? String(event.peer_judging_percent) : "0");
     }
   }, [event]);
 
@@ -127,6 +129,7 @@ const AdminEventForm = () => {
         signatory_2: sig2 === "none" ? null : parseInt(sig2),
         signatory_3: sig3 === "none" ? null : parseInt(sig3),
         buddy_group_size: parseInt(buddyGroupSize) || 5,
+        peer_judging_percent: parseInt(peerJudgingPercent) || 0,
       };
 
       if (isEdit) {
@@ -141,9 +144,11 @@ const AdminEventForm = () => {
       if (isEdit) queryClient.invalidateQueries({ queryKey: ["event", eventId] });
       navigate(`/events/${data.uuid || data.id}`);
     },
-    onError: (error: any) => { // Using any for Axios error response access is common pattern here
-      const msg = error.response?.data?.detail || error.response?.data?.error || "An error occurred.";
-      toast.error(String(msg));
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: Record<string, string[]> } };
+      console.error("Event save error:", error);
+      const firstError = error.response?.data ? Object.values(error.response.data)[0]?.[0] : "Failed to save event.";
+      toast.error(String(firstError));
     },
   });
 
@@ -366,6 +371,36 @@ const AdminEventForm = () => {
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Judging Settings */}
+              <div className="pt-6 border-t border-border/50">
+                <div className="flex items-center gap-2 mb-4">
+                  <Award className="h-5 w-5 text-primary" />
+                  <Label className="text-base font-semibold">Judging Settings</Label>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="peerJudgingPercent">Peer Judging Contribution (%)</Label>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      If greater than 0, attendees will be able to judge submissions. 
+                      This percentage represents how much their collective scores count towards the final result.
+                    </p>
+                    <div className="flex items-center gap-4">
+                        <Input
+                          id="peerJudgingPercent"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={peerJudgingPercent}
+                          onChange={(e) => setPeerJudgingPercent(e.target.value)}
+                          className="max-w-[120px]"
+                        />
+                        <span className="text-sm font-medium text-muted-foreground">% contributor</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Networking / Buddy Groups */}

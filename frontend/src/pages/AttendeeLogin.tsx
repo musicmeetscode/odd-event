@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/services/auth";
 import { eventsService } from "@/services/events";
@@ -20,6 +20,9 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = location.state?.from?.pathname;
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     try {
@@ -28,11 +31,15 @@ const Login = () => {
         throw new Error("No credential received from Google");
       }
       const data = await eventsService.googleLogin(credentialResponse.credential);
-      login(data.token, data.username, data.role);
+      login(data.token, data.username, data.role, data.user_id);
       toast.success(`Welcome back, ${data.display_name || data.username}!`);
       
-      if (data.role === "judge") navigate("/judge");
-      else navigate("/events");
+      if (from) {
+        navigate(from, { replace: true });
+      } else {
+        if (data.role === "judge") navigate("/judge");
+        else navigate("/events");
+      }
     } catch (error) {
       console.error("Google Login Error:", error);
       toast.error("Google Sign-In failed. Please check your account or try again.");
@@ -53,7 +60,7 @@ const Login = () => {
     setIsLoading(true);
     try {
       const data = await authService.login(username, password);
-      login(data.token, data.username, data.role);
+      login(data.token, data.username, data.role, data.user_id);
 
       if (data.must_reset_password) {
         toast.info("Please set a new password to continue.");
@@ -62,11 +69,15 @@ const Login = () => {
       }
 
       toast.success(`Welcome back, ${data.display_name || data.username}!`);
-
-      if (data.role === "judge") {
-        navigate("/judge");
+      
+      if (from) {
+        navigate(from, { replace: true });
       } else {
-        navigate("/events");
+        if (data.role === "judge") {
+          navigate("/judge");
+        } else {
+          navigate("/events");
+        }
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { non_field_errors?: string[] } } };

@@ -107,7 +107,7 @@ const LandingPage = () => {
             {[
               { id: 1, title: "Discovery", desc: "Join world-class events and manage registrations in one seamless dashboard.", icon: <Compass className="h-6 w-6" /> },
               { id: 2, title: "Amplify", desc: "Generate high-quality social posters to showcase your presence and network.", icon: <Share2 className="h-6 w-6" /> },
-              { id: 3, title: "Feedback", desc: "Submit your work for real-time evaluation and receive actionable expert insights.", icon: <Zap className="h-6 w-6" /> },
+              { id: 3, title: "Feedback", desc: "Submit your work for real-time evaluation and receive actionable expert and peer insights.", icon: <Zap className="h-6 w-6" /> },
               { id: 4, title: "Success", desc: "Connect with curated buddy groups and claim verified digital certificates.", icon: <Award className="h-6 w-6" /> }
             ].map((step) => (
               <Card key={step.id} className="group relative overflow-hidden border-slate-100/60 bg-slate-50/30 hover:bg-white shadow-2xl transition-all duration-500 rounded-[2.5rem]">
@@ -175,7 +175,7 @@ const LandingPage = () => {
                   </div>
                   <Button
                     className="w-full h-11 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-900 font-bold transition-all border border-slate-200"
-                    onClick={() => navigate(`/events/${event.id}`)}
+                    onClick={() => navigate(`/events/${event.uuid}`)}
                   >
                     View Details
                   </Button>
@@ -264,7 +264,7 @@ const LandingPage = () => {
           <div className="space-y-8">
             <div className="space-y-4">
               <Badge variant="outline" className="border-secondary/20 text-secondary bg-secondary/5 font-bold">Why Choose Us?</Badge>
-              <h2 className="text-4xl md:text-5xl font-black text-slate-900 leading-tight">Elevate Your Events Through Expert Judging</h2>
+              <h2 className="text-4xl md:text-5xl font-black text-slate-900 leading-tight">Elevate Your Events Through Expert and Peer Judging</h2>
               <p className="text-xl text-slate-500 leading-relaxed">Our platform is designed to streamline event management, from registration to final results, with professional tools built for success.</p>
             </div>
 
@@ -277,7 +277,7 @@ const LandingPage = () => {
               <div className="p-6 bg-white border border-slate-100 rounded-3xl space-y-4 hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-300 group">
                 <div className="h-12 w-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform"><Shield className="h-6 w-6" /></div>
                 <h4 className="font-bold text-slate-900">Fair Judging</h4>
-                <p className="text-sm text-slate-500 leading-relaxed">Transparent criteria and real-time leaderboards for every competition.</p>
+                <p className="text-sm text-slate-500 leading-relaxed">Transparent criteria, peer participation, and real-time leaderboards for every competition.</p>
               </div>
               <div className="p-6 bg-white border border-slate-100 rounded-3xl space-y-4 hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-300 group">
                 <div className="h-12 w-12 rounded-2xl bg-green-100 text-green-600 flex items-center justify-center group-hover:scale-110 transition-transform"><Award className="h-6 w-6" /></div>

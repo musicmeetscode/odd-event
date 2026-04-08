@@ -158,7 +158,7 @@ class EventDetailSerializer(serializers.ModelSerializer):
             'recurrence_day_of_week', 'recurrence_day_of_month', 'recurrence_group_id', 
             'certificates_released', 'partners', 'signatories',
             'partner_ids', 'signatory_ids', 'buddy_group_size',
-            'buddy_group', 'registration_status',
+            'peer_judging_percent', 'buddy_group', 'registration_status',
         ]
         read_only_fields = ['created_by', 'created_at', 'updated_at', 'uuid']
 
@@ -270,11 +270,52 @@ class ScoreSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'submission', 'criteria', 'criteria_name', 'max_score',
             'judge', 'judge_name', 'score', 'comment', 'scored_at',
+            'is_peer_score'
         ]
-        read_only_fields = ['id', 'judge', 'scored_at']
+        read_only_fields = ['id', 'judge', 'scored_at', 'is_peer_score']
+
+    def validate(self, data):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication required")
+
+        user = request.user
+        submission = data.get('submission')
+        criteria = data.get('criteria')
+        event = submission.event
+
+        # Check if user is an official judge
+        is_official_judge = event.judge_assignments.filter(judge=user).exists()
+        
+        # Check if peer judging is enabled and user is an attendee
+        is_attendee = event.registrations.filter(user=user, status__in=['registered', 'checked_in']).exists()
+        can_peer_judge = event.peer_judging_percent > 0 and is_attendee
+
+        if not is_official_judge and not can_peer_judge:
+            raise serializers.ValidationError("You do not have permission to judge this event.")
+
+        # Self-judging restriction
+        if submission.submitted_by == user:
+            raise serializers.ValidationError("You cannot judge your own submission.")
+        
+        if submission.team and submission.team.members.filter(user=user).exists():
+            raise serializers.ValidationError("You cannot judge your team's submission.")
+
+        # Duplicate judging check
+        if Score.objects.filter(submission=submission, criteria=criteria, judge=user).exists():
+            raise serializers.ValidationError("You have already scored this criterion for this submission.")
+
+        # Set is_peer_score for internal use
+        self._is_peer_score = not is_official_judge
+        
+        return data
+
+    def create(self, validated_data):
+        validated_data['judge'] = self.context['request'].user
+        validated_data['is_peer_score'] = getattr(self, '_is_peer_score', False)
+        return super().create(validated_data)
 
     def validate_score(self, value):
-        # Additional validation done in model.clean() but also check here
         if value < 0:
             raise serializers.ValidationError("Score cannot be negative.")
         return value

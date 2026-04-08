@@ -150,6 +150,10 @@ class Event(models.Model):
     signatory_3 = models.ForeignKey(Signatory, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     
     buddy_group_size = models.PositiveIntegerField(default=5, help_text="Number of people per buddy group")
+    peer_judging_percent = models.PositiveIntegerField(
+        default=0, 
+        help_text="Percentage of the final score contributed by peer judging (0-100)"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -338,13 +342,48 @@ class Submission(models.Model):
 
     @property
     def total_weighted_score(self):
-        """Calculate weighted score across all judges and criteria."""
-        scores = self.scores.all()
-        if not scores.exists():
+        """Calculate weighted score across all judges and criteria with peer weighting."""
+        all_scores = self.scores.all()
+        if not all_scores.exists():
             return 0
+        
+        peer_percent = self.event.peer_judging_percent
+        peer_weight = peer_percent / 100.0
+        judge_weight = (100 - peer_percent) / 100.0
+        
+        # Group by criteria
+        criteria_map = {}
+        for crit in self.event.judging_criteria.all():
+            criteria_map[crit.id] = {
+                'weight': crit.weight,
+                'judge_scores': [],
+                'peer_scores': []
+            }
+            
+        for s in all_scores:
+            if s.criteria_id in criteria_map:
+                if s.is_peer_score:
+                    criteria_map[s.criteria_id]['peer_scores'].append(s.score)
+                else:
+                    criteria_map[s.criteria_id]['judge_scores'].append(s.score)
+        
         total = 0
-        for score in scores:
-            total += score.score * score.criteria.weight
+        for crit_id, data in criteria_map.items():
+            avg_judge = sum(data['judge_scores']) / len(data['judge_scores']) if data['judge_scores'] else None
+            avg_peer = sum(data['peer_scores']) / len(data['peer_scores']) if data['peer_scores'] else None
+            
+            combined_score = 0
+            if avg_judge is not None and avg_peer is not None:
+                combined_score = (avg_judge * judge_weight) + (avg_peer * peer_weight)
+            elif avg_judge is not None:
+                # If only judges voted, they take full weight
+                combined_score = avg_judge
+            elif avg_peer is not None:
+                # If only peers voted, they take full weight
+                combined_score = avg_peer
+                
+            total += combined_score * data['weight']
+            
         return round(total, 2)
 
 
@@ -385,9 +424,9 @@ class Score(models.Model):
     judge = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='scores_given',
-        limit_choices_to={'role': 'judge'}
+        related_name='scores_given'
     )
+    is_peer_score = models.BooleanField(default=False)
     score = models.FloatField()
     comment = models.TextField(blank=True)
     scored_at = models.DateTimeField(auto_now_add=True)

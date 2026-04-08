@@ -45,7 +45,7 @@ const AttendeeRegister = () => {
     try {
       const formattedName = displayName.trim() ? toTitleCase(displayName.trim()) : undefined;
       const data = await authService.register(username, password, formattedName);
-      login(data.token, data.username, data.role);
+      login(data.token, data.username, data.role, data.user_id);
       toast.success("Account created! Welcome aboard 🎉");
       navigate("/events");
     } catch (error: unknown) {
