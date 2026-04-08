@@ -11,6 +11,7 @@ export interface AuthResponse {
   username: string;
   display_name?: string;
   role: UserRole;
+  user_id: number;
   avatar_url?: string;
   must_reset_password?: boolean;
   check_in_result?: Record<string, unknown>;
@@ -92,6 +93,7 @@ export interface Event {
   created_by_name: string;
   certificates_released: boolean;
   buddy_group_size: number;
+  peer_judging_percent: number;
   buddy_group?: BuddyGroup | null;
   is_registered: boolean;
   registration_status?: 'registered' | 'checked_in' | 'cancelled' | null;

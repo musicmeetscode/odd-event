@@ -12,7 +12,8 @@ import {
   Calendar, 
   Settings,
   Zap,
-  BookOpen
+  BookOpen,
+  Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,6 +53,11 @@ const UserGuideWidget = () => {
             title: "How to join a team?",
             icon: <Users className="h-4 w-4" />,
             content: "1. Tap the 'Teams' tab in the event.\n2. Browse existing teams and click 'Join' or 'Create' your own."
+          },
+          {
+            title: "How to judge other projects?",
+            icon: <Star className="h-4 w-4" />,
+            content: "1. Open the event details.\n2. Tap the 'Judging' tab (if enabled by admin).\n3. Browse submissions and tap on one to score it. You cannot judge your own work."
           }
         ]
       },
@@ -94,6 +100,11 @@ const UserGuideWidget = () => {
             title: "How to set judging criteria?",
             icon: <Zap className="h-4 w-4" />,
             content: "In the event 'Manage' tab, scroll to 'Judging Criteria' to add metrics like Creativity, Technical Skill, etc."
+          },
+          {
+            title: "How to enable peer judging?",
+            icon: <Users className="h-4 w-4" />,
+            content: "1. Edit your event configurations.\n2. Set 'Peer Judging Percent' to a value above 0.\n3. Attendees will now see the Judging tab and can vote on projects using your criteria."
           },
           {
             title: "How to release certificates?",
