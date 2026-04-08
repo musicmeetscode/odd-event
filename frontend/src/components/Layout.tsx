@@ -25,16 +25,20 @@ const Layout = () => {
     navigate(getHomePath());
   };
 
+  const isLanding = window.location.pathname === "/";
+
   if (!isAuthenticated) return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-primary/5">
       <div className="flex-1 flex flex-col items-center justify-center p-4">
-        <Link 
-          to={getHomePath()} 
-          className="mb-6 flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Home
-        </Link>
+        {!isLanding && (
+          <Link 
+            to={getHomePath()} 
+            className="mb-6 flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Home
+          </Link>
+        )}
         <Outlet />
       </div>
       <Footer />
@@ -42,7 +46,7 @@ const Layout = () => {
   );
 
   return (
-    <div className="flex min-h-screen bg-[#f1f5f9]">
+    <div className="flex min-h-screen bg-white">
       {/* Desktop Sidebar */}
       <div className="hidden md:block sticky top-0 h-screen">
         <Sidebar />
@@ -64,15 +68,17 @@ const Layout = () => {
               <span className="font-bold text-lg text-slate-800">{brand.name}</span>
             </div>
             
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden md:flex items-center gap-2 text-slate-500 hover:text-primary transition-colors"
-              onClick={handleHomeClick}
-            >
-              <Home className="h-4 w-4" />
-              <span>Back to Home</span>
-            </Button>
+            {!role || location.pathname !== getHomePath() && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hidden md:flex items-center gap-2 text-slate-500 hover:text-primary transition-colors"
+                onClick={handleHomeClick}
+              >
+                <Home className="h-4 w-4" />
+                <span>Back to Home</span>
+              </Button>
+            )}
           </div>
 
           <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMobileMenuOpen(true)}>

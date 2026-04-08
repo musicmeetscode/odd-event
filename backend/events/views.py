@@ -788,6 +788,41 @@ class WallOfFameView(APIView):
         top_entries = entries[:3]
         for i, entry in enumerate(top_entries, 1): entry['rank'] = i
         return Response(top_entries)
+class GlobalWallOfFameView(APIView):
+    permission_classes = [AllowAny]
+    def get(self, request):
+        # Fetch all events with competition results
+        events = Event.objects.filter(is_active=True).prefetch_related('submissions', 'submissions__submitted_by')
+        global_winners = []
+        
+        for event in events:
+            submissions = event.submissions.all()
+            if not submissions.exists():
+                continue
+                
+            # Compute top 3 for this event
+            entries = []
+            for sub in submissions:
+                total = Score.objects.filter(submission=sub).aggregate(
+                    total=Coalesce(Sum(F('score') * F('criteria__weight'), output_field=FloatField()), 0.0)
+                )['total']
+                entries.append({
+                    'submission_id': sub.id, 
+                    'title': sub.title, 
+                    'submitted_by': sub.submitted_by.display_name or sub.submitted_by.username, 
+                    'avatar_url': sub.submitted_by.avatar_url,
+                    'event_title': event.title,
+                    'total_score': round(total, 2)
+                })
+            
+            entries.sort(key=lambda x: x['total_score'], reverse=True)
+            # Add top 3 to global list
+            global_winners.extend(entries[:3])
+            
+        # Optional: Sort global winners by score or recency
+        global_winners.sort(key=lambda x: x['total_score'], reverse=True)
+            
+        return Response(global_winners[:12]) # Show top 12 global performers
 
 class ProfileDownloadView(APIView):
     permission_classes = [AllowAny]

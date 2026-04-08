@@ -1,5 +1,5 @@
 import apiClient from "./api";
-import type { Event, EventRegistration, Session, Question, Submission, LeaderboardEntry, BuddyGroup } from "@/types/api";
+import type { Event, EventRegistration, Session, Question, Submission, LeaderboardEntry, BuddyGroup, GlobalWallOfFameEntry } from "@/types/api";
 
 export const eventsService = {
   // Events
@@ -148,6 +148,11 @@ export const eventsService = {
 
   getWallOfFame: async (eventId: string | number): Promise<LeaderboardEntry[]> => {
     const response = await apiClient.get<LeaderboardEntry[]>(`/events/${eventId}/wall-of-fame/`);
+    return response.data;
+  },
+  
+  getGlobalWallOfFame: async (): Promise<GlobalWallOfFameEntry[]> => {
+    const response = await apiClient.get<GlobalWallOfFameEntry[]>("/global-wall-of-fame/");
     return response.data;
   },
 

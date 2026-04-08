@@ -27,6 +27,7 @@ import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import WallOfFame from "./pages/WallOfFame";
+import LandingPage from "./pages/LandingPage";
 import ProfileCard from "./pages/ProfileCard";
 import Privacy from "./pages/Privacy";
 import PublicSubmission from "./pages/PublicSubmission";
@@ -52,7 +53,7 @@ const App = () => (
           <Routes>
             {/* Public */}
             <Route element={<Layout />}>
-              <Route path="/" element={<RoleSelection />} />
+              <Route path="/" element={<LandingPage />} />
               <Route path="/register" element={<AttendeeRegister />} />
               <Route path="/login" element={<Login />} />
               <Route path="/check-in" element={<CheckIn />} />
