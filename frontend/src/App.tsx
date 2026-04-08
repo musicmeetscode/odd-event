@@ -34,6 +34,7 @@ import AdminAssetManagement from "./pages/AdminAssetManagement";
 import ManageBuddyGroups from "./pages/ManageBuddyGroups";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
+import UserGuideWidget from "./components/UserGuideWidget";
 
 const queryClient = new QueryClient();
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "503556441696-noc9guh0kb19hr11pqtlmeo0cl3efsbr.apps.googleusercontent.com";
@@ -95,6 +96,7 @@ const App = () => (
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <UserGuideWidget />
         </BrowserRouter>
       </TooltipProvider>
       </BrandProvider>
