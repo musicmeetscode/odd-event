@@ -15,6 +15,7 @@ export interface AuthResponse {
   avatar_url?: string;
   must_reset_password?: boolean;
   check_in_result?: Record<string, unknown>;
+  can_judge?: boolean;
 }
 
 export interface User {
@@ -30,6 +31,7 @@ export interface User {
   avatar_url?: string;
   is_flagged?: boolean;
   is_google_connected: boolean;
+  can_judge: boolean;
 }
 
 export interface BrandingConfiguration {
@@ -212,6 +214,7 @@ export interface JudgeDashboardEvent {
   event_id: string | number;
   event_title: string;
   event_type: EventType;
+  end_date: string;
   total_submissions: number;
   scored_submissions: number;
   criteria: JudgingCriteria[];

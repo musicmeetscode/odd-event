@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ requireRole }: ProtectedRouteProps) => {
-  const { isAuthenticated, isLoading, role } = useAuth();
+  const { isAuthenticated, isLoading, role, canJudge } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -23,6 +23,10 @@ export const ProtectedRoute = ({ requireRole }: ProtectedRouteProps) => {
   }
 
   if (requireRole && role !== requireRole && role !== "admin") {
+    // Special exception for peer judging: attendees with canJudge=true can access 'judge' role routes
+    if (requireRole === 'judge' && canJudge) {
+      return <Outlet />;
+    }
     return <Navigate to="/events" replace />;
   }
 

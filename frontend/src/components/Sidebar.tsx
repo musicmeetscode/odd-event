@@ -1,5 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { eventsService } from "@/services/events";
 import { Button } from "@/components/ui/button";
 import {
   LogOut,
@@ -14,9 +16,21 @@ import { useBrand } from "@/contexts/BrandContext";
 
 const Sidebar = ({ onClose }: { onClose?: () => void }) => {
   const { brand } = useBrand();
-  const { username, role, logout } = useAuth();
+  const { username, role, logout, canJudge, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Check if user has any upcoming peer judging events (supplements the login-time canJudge flag)
+  const { data: myEvents } = useQuery({
+    queryKey: ["my-events"],
+    queryFn: eventsService.getMyEvents,
+    enabled: isAuthenticated,
+    staleTime: 60_000,
+  });
+
+  const hasPeerJudgingEvent = myEvents?.some(
+    (e) => e.peer_judging_percent > 0 && new Date(e.end_date) >= new Date()
+  ) ?? false;
 
   const handleLogout = async () => {
     await logout();
@@ -38,7 +52,7 @@ const Sidebar = ({ onClose }: { onClose?: () => void }) => {
 
   navItems.push({ name: "Events", path: "/events", icon: CalendarDays });
 
-  if (role === "admin" || role === "judge") {
+  if (canJudge || hasPeerJudgingEvent) {
     navItems.push({ name: "Judging", path: "/judge", icon: Gavel });
   }
 

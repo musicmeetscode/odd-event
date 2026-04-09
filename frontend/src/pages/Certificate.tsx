@@ -75,9 +75,18 @@ const Certificate = () => {
             });
             
             pdf.addImage(url, 'PNG', 0, 0, 1000, 700);
-            pdf.save(`Certificate_${cert?.attendee_name?.replace(/\s+/g, '_') || "Achievement"}.pdf`);
+            const filename = `Certificate_${cert?.attendee_name?.replace(/\s+/g, '_') || "Achievement"}.pdf`;
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (isMobile) {
+                const blob = pdf.output('blob');
+                const blobUrl = URL.createObjectURL(blob);
+                window.open(blobUrl, '_blank');
+                toast.success("PDF opened! Use your browser menu to save it.");
+            } else {
+                pdf.save(filename);
+                toast.success("Certificate downloaded!");
+            }
             setIsGenerating(false);
-            toast.success("Certificate downloaded! 🎉");
         } catch (err) {
             console.error(err);
             toast.error("Failed to generate certificate.");

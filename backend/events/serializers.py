@@ -9,14 +9,26 @@ from .models import (
 
 class UserSerializer(serializers.ModelSerializer):
     is_google_connected = serializers.SerializerMethodField()
+    can_judge = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'uuid', 'username', 'display_name', 'name', 'role', 'email', 'bio', 'profession', 'avatar_url', 'is_flagged', 'is_google_connected']
+        fields = ['id', 'uuid', 'username', 'display_name', 'name', 'role', 'email', 'bio', 'profession', 'avatar_url', 'is_flagged', 'is_google_connected', 'can_judge']
         read_only_fields = ['id', 'uuid', 'role', 'is_flagged']
 
     def get_is_google_connected(self, obj):
         return bool(obj.google_id)
+
+    def get_can_judge(self, obj):
+        if obj.role in ('admin', 'judge'):
+            return True
+        # Check if the user is an attendee of any event with peer judging enabled
+        from .models import EventRegistration
+        return EventRegistration.objects.filter(
+            user=obj, 
+            status__in=['registered', 'checked_in'],
+            event__peer_judging_percent__gt=0
+        ).exists()
 
 
 class RegistrationSerializer(serializers.Serializer):

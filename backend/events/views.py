@@ -2,7 +2,7 @@ import re
 import uuid
 import csv
 import io
-from django.db.models import Sum, F, FloatField, Count, Avg
+from django.db.models import Sum, F, FloatField, Count, Avg, Q
 from django.db.models.functions import Coalesce
 from django.db import IntegrityError
 from django.http import HttpResponse
@@ -84,12 +84,14 @@ class RegisterView(APIView):
                     role='attendee',
                 )
                 token, _ = Token.objects.get_or_create(user=user)
+                can_judge = user.role in ('admin', 'judge') or user.is_staff or EventRegistration.objects.filter(user=user, status__in=['registered', 'checked_in'], event__peer_judging_percent__gt=0).exists()
                 return Response({
                     'token': token.key,
                     'username': user.username,
                     'display_name': user.display_name,
                     'role': user.role,
                     'user_id': user.id,
+                    'can_judge': can_judge
                 }, status=status.HTTP_201_CREATED)
             except IntegrityError:
                 return Response(
@@ -114,6 +116,7 @@ class LoginView(ObtainAuthToken):
                     user.save(update_fields=['role'])
                     effective_role = 'admin'
 
+                can_judge = user.role in ('admin', 'judge') or user.is_staff or EventRegistration.objects.filter(user=user, status__in=['registered', 'checked_in'], event__peer_judging_percent__gt=0).exists()
                 return Response({
                     'token': token_key,
                     'username': user.username,
@@ -121,6 +124,7 @@ class LoginView(ObtainAuthToken):
                     'role': effective_role,
                     'user_id': user.id,
                     'must_reset_password': user.must_reset_password,
+                    'can_judge': can_judge
                 })
             except Token.DoesNotExist:
                 return Response(
@@ -206,6 +210,7 @@ class GoogleLoginView(APIView):
                 }
 
         token_obj, _ = Token.objects.get_or_create(user=user)
+        can_judge = user.role in ('admin', 'judge') or user.is_staff or EventRegistration.objects.filter(user=user, status__in=['registered', 'checked_in'], event__peer_judging_percent__gt=0).exists()
         return Response({
             'token': token_obj.key,
             'username': user.username,
@@ -214,6 +219,7 @@ class GoogleLoginView(APIView):
             'user_id': user.id,
             'avatar_url': user.avatar_url,
             'check_in_result': check_in_result,
+            'can_judge': can_judge
         }, status=status.HTTP_200_OK)
 
 
@@ -532,7 +538,19 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         event_id = self.kwargs.get('event_id')
         if event_id:
             event = resolve_event(event_id)
-            return Submission.objects.filter(event=event) if event else Submission.objects.none()
+            if not event: return Submission.objects.none()
+            queryset = Submission.objects.filter(event=event)
+            
+            # If in judging context, filter out own/team projects
+            if self.request.query_params.get('judging') == 'true':
+                user = self.request.user
+                # Exclude own submissions
+                queryset = queryset.exclude(submitted_by=user)
+                # Exclude team submissions
+                if user.team_memberships.filter(team__event=event).exists():
+                    team_ids = user.team_memberships.filter(team__event=event).values_list('team_id', flat=True)
+                    queryset = queryset.exclude(team_id__in=team_ids)
+            return queryset
         return Submission.objects.all()
     def perform_create(self, serializer):
         event = resolve_event(self.kwargs.get('event_id'))
@@ -547,13 +565,38 @@ class SubmissionViewSet(viewsets.ModelViewSet):
 class JudgeDashboardView(APIView):
     permission_classes = [IsJudgeOrAdmin]
     def get(self, request):
-        events = Event.objects.all() if request.user.role == 'admin' else [a.event for a in JudgeAssignment.objects.filter(judge=request.user).select_related('event')]
+        from django.utils import timezone
+        now = timezone.now()
+        if request.user.role == 'admin' or request.user.is_staff:
+            events = Event.objects.filter(end_date__gte=now)
+        else:
+            # Official assignments — upcoming only
+            assigned_events = list(Event.objects.filter(judge_assignments__judge=request.user, end_date__gte=now))
+            # Peer judging (attendee) — upcoming only
+            peer_events = list(Event.objects.filter(
+                registrations__user=request.user,
+                registrations__status__in=['registered', 'checked_in'],
+                peer_judging_percent__gt=0,
+                end_date__gte=now,
+            ))
+            # Combine unique events
+            events_dict = {e.id: e for e in assigned_events + peer_events}
+            events = list(events_dict.values())
         data = []
         for event in events:
             scored_count = Score.objects.filter(judge=request.user, submission__event=event).values('submission').distinct().count()
+            # For peer judges, total_submissions excludes their own submission
+            total_qs = Submission.objects.filter(event=event)
+            is_peer = not (request.user.role in ('admin', 'judge') or request.user.is_staff or JudgeAssignment.objects.filter(judge=request.user, event=event).exists())
+            if is_peer:
+                total_qs = total_qs.exclude(submitted_by=request.user)
+                team_ids = request.user.team_memberships.filter(team__event=event).values_list('team_id', flat=True)
+                if team_ids:
+                    total_qs = total_qs.exclude(team_id__in=team_ids)
             data.append({
                 'event_id': event.uuid, 'event_title': event.title, 'event_type': event.event_type,
-                'total_submissions': Submission.objects.filter(event=event).count(), 'scored_submissions': scored_count,
+                'end_date': event.end_date,
+                'total_submissions': total_qs.count(), 'scored_submissions': scored_count,
                 'criteria': JudgingCriteriaSerializer(event.judging_criteria.all(), many=True).data,
             })
         return Response(data)
@@ -704,7 +747,7 @@ class UserListView(APIView):
         role, search = request.query_params.get('role'), request.query_params.get('search')
         users = User.objects.all()
         if role: users = users.filter(role=role)
-        if search: users = users.filter(re.Q(username__icontains=search) | re.Q(display_name__icontains=search) | re.Q(email__icontains=search))
+        if search: users = users.filter(Q(username__icontains=search) | Q(display_name__icontains=search) | Q(email__icontains=search))
         return Response(UserSerializer(users, many=True).data)
 
 class UserDetailView(APIView):
@@ -923,11 +966,11 @@ class AdminPasswordResetView(APIView):
     permission_classes = [IsAdminUser]
     def post(self, request):
         user_id, new_password = request.data.get('user_id'), request.data.get('new_password')
-        try:
-            user = User.objects.get(id=user_id)
+        user = resolve_user(user_id)
+        if user:
             user.set_password(new_password); user.save()
             return Response({'detail': 'Password reset by admin.'})
-        except User.DoesNotExist: return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 class EventAttendeesView(APIView):
     permission_classes = [IsAdminUser]
