@@ -387,12 +387,15 @@ class EventViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
     def generate_buddy_groups(self, request, pk=None):
-        """Generates buddy groups for checked-in attendees with funny catchy names."""
+        """Generates buddy groups for all registered attendees with funny catchy names."""
         event = self.get_object()
-        registrations = event.registrations.filter(status='checked_in', buddy_group__isnull=True)
-        
+        registrations = event.registrations.filter(
+            status__in=['registered', 'checked_in'],
+            buddy_group__isnull=True,
+        )
+
         if not registrations.exists():
-            return Response({'detail': 'No checked-in attendees without groups found.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'No registered attendees without groups found.'}, status=status.HTTP_400_BAD_REQUEST)
 
         import random
         # Funny Catchy Names
@@ -974,9 +977,40 @@ class AdminPasswordResetView(APIView):
 
 class EventAttendeesView(APIView):
     permission_classes = [IsAdminUser]
+
     def get(self, request, event_id):
         event = resolve_event(event_id)
         return Response(EventRegistrationSerializer(EventRegistration.objects.filter(event=event), many=True).data) if event else Response([])
+
+    def patch(self, request, event_id):
+        event = resolve_event(event_id)
+        if not event:
+            return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+        registration_id = request.data.get('registration_id')
+        new_status = request.data.get('status')
+        if not registration_id or not new_status:
+            return Response({'error': 'registration_id and status are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            reg = EventRegistration.objects.get(pk=registration_id, event=event)
+        except EventRegistration.DoesNotExist:
+            return Response({'error': 'Registration not found.'}, status=status.HTTP_404_NOT_FOUND)
+        reg.status = new_status
+        reg.save()
+        return Response({'name': reg.user.display_name or reg.user.username, 'status': reg.status})
+
+    def delete(self, request, event_id):
+        event = resolve_event(event_id)
+        if not event:
+            return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+        registration_id = request.data.get('registration_id')
+        if not registration_id:
+            return Response({'error': 'registration_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            reg = EventRegistration.objects.get(pk=registration_id, event=event)
+        except EventRegistration.DoesNotExist:
+            return Response({'error': 'Registration not found.'}, status=status.HTTP_404_NOT_FOUND)
+        reg.delete()
+        return Response({'detail': 'Attendee removed.'})
 
 class EventAnalyticsView(APIView):
     permission_classes = [IsAdminUser]
