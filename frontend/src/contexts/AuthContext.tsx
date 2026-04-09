@@ -8,9 +8,10 @@ interface AuthContextType {
   username: string | null;
   role: UserRole | null;
   userId: number | null;
+  canJudge: boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string, username: string, role: UserRole, userId: number) => void;
+  login: (token: string, username: string, role: UserRole, userId: number, canJudge: boolean) => void;
   loginWithGoogle: (credential: string, eventId?: string | number) => Promise<import('@/types/api').AuthResponse>;
   logout: () => Promise<void>;
 }
@@ -22,6 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [username, setUsername] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
+  const [canJudge, setCanJudge] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -29,12 +31,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const savedUsername = localStorage.getItem('events-username');
     const savedRole = localStorage.getItem('events-role') as UserRole | null;
     const savedUserId = localStorage.getItem('events-userId');
+    const savedCanJudge = localStorage.getItem('events-canJudge') === 'true';
 
     if (savedToken && savedUsername) {
       setToken(savedToken);
       setUsername(savedUsername);
       setRole(savedRole);
       setUserId(savedUserId ? Number(savedUserId) : null);
+      setCanJudge(savedCanJudge);
     }
 
     setIsLoading(false);
@@ -49,21 +53,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     root.style.setProperty('--brand-border', brand.colors.border || "#E2E8F0");
   }, []);
 
-  const login = (newToken: string, newUsername: string, newRole: UserRole, newUserId: number) => {
+  const login = (newToken: string, newUsername: string, newRole: UserRole, newUserId: number, newCanJudge: boolean) => {
     localStorage.setItem('events-token', newToken);
     localStorage.setItem('events-username', newUsername);
     localStorage.setItem('events-role', newRole);
     localStorage.setItem('events-userId', String(newUserId));
+    localStorage.setItem('events-canJudge', String(newCanJudge));
 
     setToken(newToken);
     setUsername(newUsername);
     setRole(newRole);
     setUserId(newUserId);
+    setCanJudge(newCanJudge);
   };
 
   const loginWithGoogle = async (credential: string, eventId?: string | number) => {
     const data = await authService.googleLogin(credential, eventId);
-    login(data.token, data.username, data.role, data.user_id);
+    login(data.token, data.username, data.role, data.user_id, !!data.can_judge);
     return data;
   };
 
@@ -92,6 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         username,
         role,
         userId,
+        canJudge,
         isAuthenticated: !!token,
         isLoading,
         login,

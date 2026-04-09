@@ -37,11 +37,19 @@ class IsJudge(permissions.BasePermission):
 
 
 class IsJudgeOrAdmin(permissions.BasePermission):
-    """Allow access to judges and admins."""
+    """Allow access to judges, admins, and peer-judging attendees."""
 
     def has_permission(self, request, view):
-        return (
-            request.user
-            and request.user.is_authenticated
-            and request.user.role in ('judge', 'admin')
-        )
+        if not (request.user and request.user.is_authenticated):
+            return False
+        
+        if request.user.role in ('judge', 'admin') or request.user.is_staff:
+            return True
+            
+        # Check for peer judging eligibility
+        from .models import EventRegistration
+        return EventRegistration.objects.filter(
+            user=request.user, 
+            status__in=['registered', 'checked_in'],
+            event__peer_judging_percent__gt=0
+        ).exists()

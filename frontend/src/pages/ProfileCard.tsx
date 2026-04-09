@@ -76,14 +76,21 @@ const ProfileCard = () => {
         backgroundColor: "#ffffff",
       });
       const url = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${(profile?.display_name || profile?.name || brand.name.toLowerCase().replace(/\s+/g, "")).replace(/\s+/g, "_")}-${activePlatform.toLowerCase()}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const filename = `${(profile?.display_name || profile?.name || brand.name.toLowerCase().replace(/\s+/g, "")).replace(/\s+/g, "_")}-${activePlatform.toLowerCase()}.png`;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        window.open(url, "_blank");
+        toast.success("Image opened! Long-press it to save to your photos.");
+      } else {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Social badge downloaded!");
+      }
       setIsGenerating(false);
-      toast.success("Social badge downloaded!");
     } catch {
       toast.error("Failed to generate badge.");
       setIsGenerating(false);

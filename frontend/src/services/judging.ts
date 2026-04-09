@@ -11,7 +11,8 @@ export const judgingService = {
 
   getSubmissions: async (eventId: string | number) => {
     const response = await apiClient.get<Submission[]>(
-      `/events/${eventId}/submissions/`
+      `/events/${eventId}/submissions/`,
+      { params: { judging: 'true' } }
     );
     return response.data;
   },

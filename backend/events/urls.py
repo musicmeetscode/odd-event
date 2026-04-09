@@ -89,6 +89,7 @@ urlpatterns = [
 
     # Speaker profile
     path('profile/', views.SpeakerProfileView.as_view(), name='speaker-profile'),
+    path('my-events/', views.MyEventsView.as_view(), name='my-events'),
 
     # Certificate & Sharing
     path('events/<str:event_id>/certificate/', views.CertificateView.as_view(), name='event-certificate'),
@@ -100,8 +101,8 @@ urlpatterns = [
 
     # Admin: user management
     path('users/', views.UserListView.as_view(), name='user-list'),
-    path('users/<str:user_id>/', views.UserDetailView.as_view(), name='user-detail'),
     path('users/reset-password/', views.AdminPasswordResetView.as_view(), name='admin-reset-password'),
+    path('users/<str:user_id>/', views.UserDetailView.as_view(), name='user-detail'),
 
     # Admin: Dashboard stats
     path('dashboard/stats/', views.AdminDashboardView.as_view(), name='admin-dashboard-stats'),
